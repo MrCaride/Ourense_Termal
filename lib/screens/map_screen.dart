@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_map_cancellable_tile_provider/flutter_map_cancellable_tile_provider.dart';
+import 'package:latlong2/latlong.dart';
 import '../models/user_model.dart';
 import '../models/thermal_point_model.dart';
 import 'thermal_point_detail_screen.dart';
@@ -22,6 +25,10 @@ class MapScreen extends StatefulWidget {
 class _MapScreenState extends State<MapScreen> {
   String _selectedFilter = 'all';
   String _searchQuery = '';
+  final MapController _mapController = MapController();
+  
+  // Centro del mapa en Ourense
+  final LatLng _ourenseCenter = LatLng(42.3376, -7.8653);
 
   @override
   Widget build(BuildContext context) {
@@ -90,24 +97,79 @@ class _MapScreenState extends State<MapScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                // Mapa placeholder
+                // Mapa interactivo con flutter_map
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 16),
-                  height: 200,
+                  height: 300,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(16),
-                    gradient: LinearGradient(
-                      colors: [Colors.cyan[100]!, Colors.blue[100]!],
-                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: FlutterMap(
+                      mapController: _mapController,
+                      options: MapOptions(
+                        initialCenter: _ourenseCenter,
+                        initialZoom: 13.0,
+                        minZoom: 10.0,
+                        maxZoom: 18.0,
+                      ),
                       children: [
-                        Icon(Icons.map, size: 48, color: Colors.cyan[500]),
-                        const SizedBox(height: 8),
-                        const Text('Mapa interactivo'),
-                        const Text('Ourense, Galicia', style: TextStyle(fontSize: 12)),
+                        // Capa de OpenStreetMap con proveedor optimizado
+                        TileLayer(
+                          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                          userAgentPackageName: 'com.tfg.ourense_termal',
+                          tileProvider: CancellableNetworkTileProvider(),
+                        ),
+                        // Marcadores de puntos termales
+                        MarkerLayer(
+                          markers: filteredPoints.map((point) {
+                            final hasCheckedIn = widget.checkIns.any((c) => c.pointId == point.id);
+                            return Marker(
+                              point: LatLng(point.latitude, point.longitude),
+                              width: 50,
+                              height: 50,
+                              child: GestureDetector(
+                                onTap: () {
+                                  _showPointBottomSheet(context, point, hasCheckedIn);
+                                },
+                                child: Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    // Sombra del marcador
+                                    Icon(
+                                      Icons.location_on,
+                                      size: 50,
+                                      color: Colors.black.withOpacity(0.3),
+                                    ),
+                                    // Marcador principal
+                                    Icon(
+                                      Icons.location_on,
+                                      size: 45,
+                                      color: _getMarkerColor(point.type, hasCheckedIn),
+                                    ),
+                                    // Icono del tipo
+                                    Positioned(
+                                      top: 8,
+                                      child: Icon(
+                                        _getTypeIcon(point.type),
+                                        size: 16,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
                       ],
                     ),
                   ),
@@ -116,12 +178,24 @@ class _MapScreenState extends State<MapScreen> {
                 // Título lista
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Text(
-                    'Puntos Termales (${filteredPoints.length})',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Puntos Termales (${filteredPoints.length})',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.my_location),
+                        onPressed: () {
+                          _mapController.move(_ourenseCenter, 13.0);
+                        },
+                        tooltip: 'Centrar mapa',
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -148,6 +222,124 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
+  // Obtener color del marcador según tipo y check-in
+  Color _getMarkerColor(String type, bool hasCheckedIn) {
+    if (hasCheckedIn) return Colors.green[600]!;
+    
+    switch (type) {
+      case 'fountain':
+        return Colors.cyan[600]!;
+      case 'pool':
+        return Colors.blue[600]!;
+      case 'spa':
+        return Colors.purple[600]!;
+      default:
+        return Colors.grey[600]!;
+    }
+  }
+
+  // Obtener icono según tipo
+  IconData _getTypeIcon(String type) {
+    switch (type) {
+      case 'fountain':
+        return Icons.water_drop;
+      case 'pool':
+        return Icons.pool;
+      case 'spa':
+        return Icons.spa;
+      default:
+        return Icons.place;
+    }
+  }
+
+  // Mostrar bottom sheet con info del punto
+  void _showPointBottomSheet(BuildContext context, ThermalPoint point, bool hasCheckedIn) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Chip(
+                    label: Text(point.getTypeLabel()),
+                    backgroundColor: _getMarkerColor(point.type, hasCheckedIn).withOpacity(0.2),
+                  ),
+                  const SizedBox(width: 8),
+                  if (hasCheckedIn)
+                    const Chip(
+                      label: Text('✓ Visitado'),
+                      backgroundColor: Colors.green,
+                      labelStyle: TextStyle(color: Colors.white),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                point.name,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                point.description,
+                style: TextStyle(
+                  color: Colors.grey[600],
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Icon(Icons.thermostat, size: 20, color: Colors.orange[600]),
+                  const SizedBox(width: 4),
+                  Text('${point.temperature}°C'),
+                  const SizedBox(width: 16),
+                  Icon(Icons.location_on, size: 20, color: Colors.grey[600]),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      point.address,
+                      style: TextStyle(color: Colors.grey[600]),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ThermalPointDetailScreen(
+                          point: point,
+                          hasCheckedIn: hasCheckedIn,
+                        ),
+                      ),
+                    );
+                  },
+                  child: const Text('Ver detalles'),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildFilterChip(String value, String label) {
     final isSelected = _selectedFilter == value;
     return FilterChip(
@@ -170,15 +362,11 @@ class _MapScreenState extends State<MapScreen> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
         onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ThermalPointDetailScreen(
-                point: point,
-                hasCheckedIn: hasCheckedIn,
-              ),
-            ),
-          );
+          // Centrar mapa en el punto
+          _mapController.move(LatLng(point.latitude, point.longitude), 15.0);
+          
+          // Mostrar bottom sheet
+          _showPointBottomSheet(context, point, hasCheckedIn);
         },
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

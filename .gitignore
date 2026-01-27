@@ -1,0 +1,60 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+.pub/
+.flutter-plugins
+.flutter-plugins-dependencies
+.metadata
+.flutter-credentials
+generated_plugin_registrant.dart
+
+# Build outputs
+build/
+
+# Android
+android/.gradle/
+android/app/build/
+**/local.properties
+android/key.properties
+android/*.keystore
+*.apk
+*.aar
+
+# iOS
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Runner.xcworkspace/
+DerivedData/
+Generated.xcconfig
+
+# macOS
+macos/Pods/
+macos/Flutter/ephemeral/
+
+# Windows
+windows/flutter/ephemeral/
+
+# Linux
+linux/flutter/ephemeral/
+
+# IDEs and editors
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# Misc
+.DS_Store
+*.log
+*.tmp
+
+# Secrets / environment files
+.env
+.env.*
+
+# Optional: ignore OS-specific swap/backup files
+*~ 
+*.swp

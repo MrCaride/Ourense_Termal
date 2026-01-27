@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_cancellable_tile_provider/flutter_map_cancellable_tile_provider.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:geolocator/geolocator.dart';
 import '../models/user_model.dart';
 import '../models/thermal_point_model.dart';
 import 'thermal_point_detail_screen.dart';
@@ -27,8 +28,136 @@ class _MapScreenState extends State<MapScreen> {
   String _searchQuery = '';
   final MapController _mapController = MapController();
   
-  // Centro del mapa en Ourense
+  // Centro del mapa en Ourense (fallback)
   final LatLng _ourenseCenter = LatLng(42.3376, -7.8653);
+  LatLng? _userLocation;
+  bool _isLoadingLocation = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _getUserLocation();
+  }
+
+  // Obtener ubicación del usuario
+  Future<void> _getUserLocation() async {
+    try {
+      // Verificar si los servicios de ubicación están habilitados
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        setState(() {
+          _isLoadingLocation = false;
+        });
+        _showLocationServiceDialog();
+        return;
+      }
+
+      // Verificar permisos
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          setState(() {
+            _isLoadingLocation = false;
+          });
+          _showPermissionDeniedSnackBar();
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        setState(() {
+          _isLoadingLocation = false;
+        });
+        _showPermissionDeniedForeverDialog();
+        return;
+      }
+
+      // Obtener posición actual
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      setState(() {
+        _userLocation = LatLng(position.latitude, position.longitude);
+        _isLoadingLocation = false;
+      });
+
+      // Mover el mapa a la ubicación del usuario
+      _mapController.move(_userLocation!, 14.0);
+    } catch (e) {
+      setState(() {
+        _isLoadingLocation = false;
+      });
+      _showLocationErrorSnackBar();
+    }
+  }
+
+  // Diálogo cuando los servicios de ubicación están deshabilitados
+  void _showLocationServiceDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Servicios de ubicación deshabilitados'),
+        content: const Text(
+          'Por favor, habilita los servicios de ubicación para usar esta funcionalidad.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Aceptar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Diálogo cuando los permisos están denegados permanentemente
+  void _showPermissionDeniedForeverDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Permisos de ubicación denegados'),
+        content: const Text(
+          'Los permisos de ubicación están permanentemente denegados. '
+          'Por favor, habilítalos desde la configuración de la aplicación.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Geolocator.openAppSettings();
+            },
+            child: const Text('Configuración'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // SnackBar cuando se deniegan permisos
+  void _showPermissionDeniedSnackBar() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Permiso de ubicación denegado'),
+        duration: Duration(seconds: 3),
+      ),
+    );
+  }
+
+  // SnackBar cuando hay error obteniendo ubicación
+  void _showLocationErrorSnackBar() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Error al obtener la ubicación'),
+        duration: Duration(seconds: 3),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -113,63 +242,110 @@ class _MapScreenState extends State<MapScreen> {
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(16),
-                    child: FlutterMap(
-                      mapController: _mapController,
-                      options: MapOptions(
-                        initialCenter: _ourenseCenter,
-                        initialZoom: 13.0,
-                        minZoom: 10.0,
-                        maxZoom: 18.0,
-                      ),
+                    child: Stack(
                       children: [
-                        // Capa de OpenStreetMap con proveedor optimizado
-                        TileLayer(
-                          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                          userAgentPackageName: 'com.tfg.ourense_termal',
-                          tileProvider: CancellableNetworkTileProvider(),
-                        ),
-                        // Marcadores de puntos termales
-                        MarkerLayer(
-                          markers: filteredPoints.map((point) {
-                            final hasCheckedIn = widget.checkIns.any((c) => c.pointId == point.id);
-                            return Marker(
-                              point: LatLng(point.latitude, point.longitude),
-                              width: 50,
-                              height: 50,
-                              child: GestureDetector(
-                                onTap: () {
-                                  _showPointBottomSheet(context, point, hasCheckedIn);
-                                },
-                                child: Stack(
-                                  alignment: Alignment.center,
-                                  children: [
-                                    // Sombra del marcador
-                                    Icon(
-                                      Icons.location_on,
-                                      size: 50,
-                                      color: Colors.black.withOpacity(0.3),
-                                    ),
-                                    // Marcador principal
-                                    Icon(
-                                      Icons.location_on,
-                                      size: 45,
-                                      color: _getMarkerColor(point.type, hasCheckedIn),
-                                    ),
-                                    // Icono del tipo
-                                    Positioned(
-                                      top: 8,
-                                      child: Icon(
-                                        _getTypeIcon(point.type),
-                                        size: 16,
+                        FlutterMap(
+                          mapController: _mapController,
+                          options: MapOptions(
+                            initialCenter: _userLocation ?? _ourenseCenter,
+                            initialZoom: _userLocation != null ? 14.0 : 13.0,
+                            minZoom: 10.0,
+                            maxZoom: 18.0,
+                          ),
+                          children: [
+                            // Capa de OpenStreetMap con proveedor optimizado
+                            TileLayer(
+                              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                              userAgentPackageName: 'com.tfg.ourense_termal',
+                              tileProvider: CancellableNetworkTileProvider(),
+                            ),
+                            // Marcador de ubicación del usuario
+                            if (_userLocation != null)
+                              MarkerLayer(
+                                markers: [
+                                  Marker(
+                                    point: _userLocation!,
+                                    width: 40,
+                                    height: 40,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.blue[600],
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: Colors.white,
+                                          width: 3,
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(0.3),
+                                            blurRadius: 6,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: const Icon(
+                                        Icons.person,
                                         color: Colors.white,
+                                        size: 20,
                                       ),
                                     ),
-                                  ],
-                                ),
+                                  ),
+                                ],
                               ),
-                            );
-                          }).toList(),
+                            // Marcadores de puntos termales
+                            MarkerLayer(
+                              markers: filteredPoints.map((point) {
+                                final hasCheckedIn = widget.checkIns.any((c) => c.pointId == point.id);
+                                return Marker(
+                                  point: LatLng(point.latitude, point.longitude),
+                                  width: 50,
+                                  height: 50,
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      _showPointBottomSheet(context, point, hasCheckedIn);
+                                    },
+                                    child: Stack(
+                                      alignment: Alignment.center,
+                                      children: [
+                                        // Sombra del marcador
+                                        Icon(
+                                          Icons.location_on,
+                                          size: 50,
+                                          color: Colors.black.withOpacity(0.3),
+                                        ),
+                                        // Marcador principal
+                                        Icon(
+                                          Icons.location_on,
+                                          size: 45,
+                                          color: _getMarkerColor(point.type, hasCheckedIn),
+                                        ),
+                                        // Icono del tipo
+                                        Positioned(
+                                          top: 8,
+                                          child: Icon(
+                                            _getTypeIcon(point.type),
+                                            size: 16,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ],
                         ),
+                        // Indicador de carga
+                        if (_isLoadingLocation)
+                          Container(
+                            color: Colors.black.withOpacity(0.3),
+                            child: const Center(
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -188,12 +364,26 @@ class _MapScreenState extends State<MapScreen> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.my_location),
-                        onPressed: () {
-                          _mapController.move(_ourenseCenter, 13.0);
-                        },
-                        tooltip: 'Centrar mapa',
+                      Row(
+                        children: [
+                          // Botón volver a mi ubicación
+                          if (_userLocation != null)
+                            IconButton(
+                              icon: const Icon(Icons.my_location),
+                              onPressed: () {
+                                _mapController.move(_userLocation!, 14.0);
+                              },
+                              tooltip: 'Mi ubicación',
+                            ),
+                          // Botón centrar en Ourense
+                          IconButton(
+                            icon: const Icon(Icons.home_outlined),
+                            onPressed: () {
+                              _mapController.move(_ourenseCenter, 13.0);
+                            },
+                            tooltip: 'Centrar en Ourense',
+                          ),
+                        ],
                       ),
                     ],
                   ),

@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import '../models/thermal_point_model.dart';
+import '../services/user_data_service.dart';
 
 class ThermalPointDetailScreen extends StatefulWidget {
   final ThermalPoint point;
   final bool hasCheckedIn;
+  final String userId;
 
   const ThermalPointDetailScreen({
     Key? key,
     required this.point,
     required this.hasCheckedIn,
+    required this.userId,
   }) : super(key: key);
 
   @override
@@ -17,6 +20,8 @@ class ThermalPointDetailScreen extends StatefulWidget {
 
 class _ThermalPointDetailScreenState extends State<ThermalPointDetailScreen> {
   late bool _checkedIn;
+  bool _isLoading = false;
+  final UserDataService _userDataService = UserDataService();
 
   @override
   void initState() {
@@ -24,13 +29,64 @@ class _ThermalPointDetailScreenState extends State<ThermalPointDetailScreen> {
     _checkedIn = widget.hasCheckedIn;
   }
 
-  void _handleCheckIn() {
+  Future<void> _handleCheckIn() async {
+    if (_checkedIn) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ya has hecho check-in en este punto')),
+      );
+      return;
+    }
+
     setState(() {
-      _checkedIn = true;
+      _isLoading = true;
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('¡Check-in realizado! +50 puntos')),
-    );
+
+    try {
+      // Crear check-in
+      await _userDataService.createCheckIn(
+        userId: widget.userId,
+        pointId: widget.point.id,
+        points: 50,
+      );
+
+      // Actualizar puntos del usuario
+      await _userDataService.updateUserPoints(widget.userId, 50);
+
+      // Verificar si es el primer check-in para dar insignia
+      final checkIns = await _userDataService.getUserCheckIns(widget.userId);
+      if (checkIns.length == 1) {
+        await _userDataService.addBadge(
+          userId: widget.userId,
+          badgeId: 'first_checkin',
+          name: 'Primera Visita',
+          description: 'Has visitado tu primer punto termal',
+          icon: '🎯',
+        );
+      }
+
+      setState(() {
+        _checkedIn = true;
+        _isLoading = false;
+      });
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('¡Check-in realizado! +50 puntos')),
+      );
+
+      // Devolver true para indicar que se hizo check-in
+      Navigator.pop(context, true);
+    } catch (e) {
+      debugPrint('Error al hacer check-in: $e');
+      setState(() {
+        _isLoading = false;
+      });
+      
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error al hacer check-in')),
+      );
+    }
   }
 
   @override
@@ -234,19 +290,28 @@ class _ThermalPointDetailScreenState extends State<ThermalPointDetailScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: FilledButton(
-                        onPressed: _handleCheckIn,
+                        onPressed: _isLoading ? null : _handleCheckIn,
                         style: FilledButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           backgroundColor: Colors.cyan[500],
                         ),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.qr_code_2),
-                            SizedBox(width: 8),
-                            Text('Hacer Check-in (+50 puntos)'),
-                          ],
-                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.qr_code_2),
+                                  SizedBox(width: 8),
+                                  Text('Hacer Check-in (+50 puntos)'),
+                                ],
+                              ),
                       ),
                     )
                   else

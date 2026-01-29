@@ -1,0 +1,17 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // REGLAS TEMPORALES PARA DESARROLLO
+    // Permite acceso completo a todas las colecciones
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}
+
+// NOTA: Para producción, usar reglas más restrictivas:
+// - users: solo el propio usuario puede leer/actualizar
+// - check_ins: solo el usuario puede crear/leer sus propios check-ins
+// - badges: solo el usuario puede leer sus propias insignias
+// - thermal_points, routes, rewards: lectura pública

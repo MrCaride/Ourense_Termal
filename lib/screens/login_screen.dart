@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import '../models/user_model.dart';
+import '../services/auth_service.dart';
+import 'home_screen.dart';
+
+enum AuthMode { login, register }
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -9,38 +12,118 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  final AuthService _authService = AuthService();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   bool _isLoading = false;
+  AuthMode _authMode = AuthMode.login;
 
   @override
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
-  void _handleLogin() {
-    final name = _nameController.text.trim();
+  Future<void> _handleLogin() async {
     final email = _emailController.text.trim();
+    final password = _passwordController.text;
 
-    if (name.isEmpty || email.isEmpty) {
+    if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Por favor completa todos los campos')),
       );
       return;
     }
 
-    // Crear usuario
-    final user = User(
-      id: DateTime.now().toString(),
-      name: name,
-      email: email,
-      joinedDate: DateTime.now(),
-    );
+    setState(() {
+      _isLoading = true;
+    });
 
-    // Navegar a home
-    Navigator.of(context).pushReplacementNamed('/home');
+    try {
+      final user = await _authService.login(email: email, password: password);
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => HomeScreen(user: user)),
+      );
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
+    } catch (e, s) {
+      debugPrint('Login error: $e');
+      debugPrintStack(stackTrace: s);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error al iniciar sesión')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _handleRegister() async {
+    final name = _nameController.text.trim();
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    final confirm = _confirmPasswordController.text;
+
+    if (name.isEmpty || email.isEmpty || password.isEmpty || confirm.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Por favor completa todos los campos')),
+      );
+      return;
+    }
+
+    if (password != confirm) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Las contraseñas no coinciden')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final user = await _authService.register(
+        name: name,
+        email: email,
+        password: password,
+      );
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => HomeScreen(user: user)),
+      );
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
+    } catch (e, s) {
+      debugPrint('Register error: $e');
+      debugPrintStack(stackTrace: s);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error al registrar el usuario')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -98,29 +181,55 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      const Text(
-                        'Crea tu cuenta para comenzar tu aventura termal',
+                      Text(
+                        _authMode == AuthMode.login
+                            ? 'Inicia sesión para continuar'
+                            : 'Crea tu cuenta para comenzar tu aventura termal',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: Colors.grey,
                           fontSize: 14,
                         ),
                       ),
                       const SizedBox(height: 32),
-                      // Campo nombre
-                      TextField(
-                        controller: _nameController,
-                        decoration: InputDecoration(
-                          labelText: 'Nombre',
-                          hintText: 'Tu nombre',
-                          prefixIcon: const Icon(Icons.person),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Colors.grey),
+                      // Selector login/registro
+                      SegmentedButton<AuthMode>(
+                        segments: const [
+                          ButtonSegment(
+                            value: AuthMode.login,
+                            label: Text('Iniciar sesión'),
+                            icon: Icon(Icons.login),
                           ),
-                        ),
+                          ButtonSegment(
+                            value: AuthMode.register,
+                            label: Text('Registrarse'),
+                            icon: Icon(Icons.person_add),
+                          ),
+                        ],
+                        selected: {_authMode},
+                        onSelectionChanged: (value) {
+                          setState(() {
+                            _authMode = value.first;
+                          });
+                        },
                       ),
                       const SizedBox(height: 16),
+                      // Campo nombre (solo registro)
+                      if (_authMode == AuthMode.register) ...[
+                        TextField(
+                          controller: _nameController,
+                          decoration: InputDecoration(
+                            labelText: 'Nombre',
+                            hintText: 'Tu nombre',
+                            prefixIcon: const Icon(Icons.person),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(color: Colors.grey),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
                       // Campo email
                       TextField(
                         controller: _emailController,
@@ -136,11 +245,44 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                       const SizedBox(height: 24),
-                      // Botón login
+                      // Campo contraseña
+                      TextField(
+                        controller: _passwordController,
+                        obscureText: true,
+                        decoration: InputDecoration(
+                          labelText: 'Contraseña',
+                          prefixIcon: const Icon(Icons.lock),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: Colors.grey),
+                          ),
+                        ),
+                      ),
+                      if (_authMode == AuthMode.register) ...[
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: _confirmPasswordController,
+                          obscureText: true,
+                          decoration: InputDecoration(
+                            labelText: 'Repetir contraseña',
+                            prefixIcon: const Icon(Icons.lock_outline),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(color: Colors.grey),
+                            ),
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 24),
+                      // Botón login/registro
                       SizedBox(
                         width: double.infinity,
                         child: FilledButton(
-                          onPressed: _isLoading ? null : _handleLogin,
+                          onPressed: _isLoading
+                              ? null
+                              : (_authMode == AuthMode.login
+                                  ? _handleLogin
+                                  : _handleRegister),
                           style: FilledButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(
@@ -155,7 +297,11 @@ class _LoginScreenState extends State<LoginScreen> {
                                     strokeWidth: 2,
                                   ),
                                 )
-                              : const Text('Comenzar Aventura'),
+                              : Text(
+                                  _authMode == AuthMode.login
+                                      ? 'Iniciar sesión'
+                                      : 'Registrarse',
+                                ),
                         ),
                       ),
                       const SizedBox(height: 16),

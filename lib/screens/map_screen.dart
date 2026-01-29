@@ -11,12 +11,14 @@ class MapScreen extends StatefulWidget {
   final List<ThermalPoint> thermalPoints;
   final User user;
   final List<CheckIn> checkIns;
+  final VoidCallback? onCheckIn;
 
   const MapScreen({
     Key? key,
     required this.thermalPoints,
     required this.user,
     required this.checkIns,
+    this.onCheckIn,
   }) : super(key: key);
 
   @override
@@ -508,17 +510,22 @@ class _MapScreenState extends State<MapScreen> {
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
-                  onPressed: () {
+                  onPressed: () async {
                     Navigator.pop(context);
-                    Navigator.push(
+                    final result = await Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) => ThermalPointDetailScreen(
                           point: point,
                           hasCheckedIn: hasCheckedIn,
+                          userId: widget.user.id,
                         ),
                       ),
                     );
+                    // Si se hizo check-in, refrescar datos
+                    if (result == true && widget.onCheckIn != null) {
+                      widget.onCheckIn!();
+                    }
                   },
                   child: const Text('Ver detalles'),
                 ),
@@ -551,12 +558,25 @@ class _MapScreenState extends State<MapScreen> {
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
-        onTap: () {
+        onTap: () async {
           // Centrar mapa en el punto
           _mapController.move(LatLng(point.latitude, point.longitude), 15.0);
           
-          // Mostrar bottom sheet
-          _showPointBottomSheet(context, point, hasCheckedIn);
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ThermalPointDetailScreen(
+                point: point,
+                hasCheckedIn: hasCheckedIn,
+                userId: widget.user.id,
+              ),
+            ),
+          );
+          
+          // Si se hizo check-in, refrescar datos
+          if (result == true && widget.onCheckIn != null) {
+            widget.onCheckIn!();
+          }
         },
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

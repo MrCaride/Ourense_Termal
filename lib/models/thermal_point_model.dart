@@ -47,12 +47,14 @@ class ThermalPoint {
 
 class CheckIn {
   final String id;
+  final String userId;
   final String pointId;
   final DateTime timestamp;
   final int points;
 
   CheckIn({
     required this.id,
+    required this.userId,
     required this.pointId,
     required this.timestamp,
     this.points = 50,

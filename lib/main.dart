@@ -1,8 +1,32 @@
 import 'package:flutter/material.dart';
-import 'screens/login_screen.dart';
-import 'screens/home_screen.dart';
+import 'package:flutter/foundation.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:sqflite/sqflite.dart' show databaseFactory;
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-void main() {
+import 'firebase_options.dart';
+import 'services/database_service.dart';
+import 'services/sync_service.dart';
+import 'screens/login_screen.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  if (!kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.windows ||
+          defaultTargetPlatform == TargetPlatform.linux ||
+          defaultTargetPlatform == TargetPlatform.macOS)) {
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+  }
+
+  // Inicializar Firebase
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  // En web no inicializa SQLite ni sincroniza. Trabaja directamente con Firestore.
+  
   runApp(const OurenseTermalApp());
 }
 
@@ -25,7 +49,6 @@ class OurenseTermalApp extends StatelessWidget {
       home: const LoginScreen(),
       routes: {
         '/login': (context) => const LoginScreen(),
-        '/home': (context) => const HomeScreen(),
       },
     );
   }

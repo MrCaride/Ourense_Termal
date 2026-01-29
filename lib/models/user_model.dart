@@ -34,6 +34,7 @@ class User {
   final String id;
   final String name;
   final String email;
+  final String passwordHash;
   int points;
   int level;
   DateTime joinedDate;
@@ -44,12 +45,42 @@ class User {
     required this.id,
     required this.name,
     required this.email,
+    required this.passwordHash,
     this.points = 0,
     this.level = 1,
     required this.joinedDate,
     this.badges = const [],
     this.redeemedRewards = const [],
   });
+
+  Map<String, dynamic> toMap({bool includePassword = true}) {
+    return {
+      'id': id,
+      'name': name,
+      'email': email,
+      if (includePassword) 'passwordHash': passwordHash,
+      'points': points,
+      'level': level,
+      'createdAt': joinedDate.millisecondsSinceEpoch,
+      'updatedAt': DateTime.now().millisecondsSinceEpoch,
+    };
+  }
+
+  factory User.fromMap(Map<String, dynamic> map) {
+    return User(
+      id: map['id'] as String,
+      name: map['name'] as String? ?? '',
+      email: map['email'] as String? ?? '',
+      passwordHash: map['passwordHash'] as String? ?? '',
+      points: map['points'] as int? ?? 0,
+      level: map['level'] as int? ?? 1,
+      joinedDate: DateTime.fromMillisecondsSinceEpoch(
+        map['createdAt'] as int? ?? DateTime.now().millisecondsSinceEpoch,
+      ),
+      badges: const [],
+      redeemedRewards: const [],
+    );
+  }
 
   // Sumar puntos
   void addPoints(int amount) {

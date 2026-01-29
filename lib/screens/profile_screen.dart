@@ -217,7 +217,53 @@ class ProfileScreen extends StatelessWidget {
                 childCount: user.badges.length,
               ),
             ),
-          const SliverPadding(padding: EdgeInsets.only(bottom: 16)),
+          const SliverPadding(padding: EdgeInsets.only(top: 16)),
+          // Botón de logout
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  // Mostrar diálogo de confirmación
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Cerrar sesión'),
+                      content: const Text('¿Estás seguro de que quieres cerrar sesión?'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Cancelar'),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.pop(context); // Cerrar diálogo
+                            Navigator.pushNamedAndRemoveUntil(
+                              context,
+                              '/login',
+                              (route) => false,
+                            );
+                          },
+                          child: const Text(
+                            'Cerrar sesión',
+                            style: TextStyle(color: Colors.red),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.logout),
+                label: const Text('Cerrar sesión'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  side: BorderSide(color: Colors.red[400]!),
+                  foregroundColor: Colors.red[600],
+                ),
+              ),
+            ),
+          ),
+          const SliverPadding(padding: EdgeInsets.only(bottom: 32)),
         ],
       ),
     );

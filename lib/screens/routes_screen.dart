@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../models/route_model.dart' as route_model;
+import '../models/user_route_progress_model.dart';
+import '../services/route_service.dart';
 
 class RoutesScreen extends StatefulWidget {
   final User user;
@@ -12,46 +14,38 @@ class RoutesScreen extends StatefulWidget {
 }
 
 class _RoutesScreenState extends State<RoutesScreen> {
+  final RouteService _routeService = RouteService();
   late List<route_model.Route> _routes;
-  final List<String> _completedRoutes = [];
+  Map<String, UserRouteProgress> _progressMap = {};
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _initializeRoutes();
+    _loadData();
   }
 
-  void _initializeRoutes() {
-    _routes = [
-      route_model.Route(
-        id: '1',
-        name: 'Ruta Histórica',
-        description: 'Descubre los baños termales históricos de Ourense',
-        theme: 'Historia',
-        type: 'walking',
-        difficulty: 'easy',
-        distance: 2.5,
-        duration: '1h 30min',
-        thermalPointIds: ['1', '2'],
-        points: 300,
-      ),
-      route_model.Route(
-        id: '2',
-        name: 'Ruta de Lujo',
-        description: 'Visita los balnearios premium de la provincia',
-        theme: 'Wellness',
-        type: 'driving',
-        difficulty: 'moderate',
-        distance: 25.0,
-        duration: '4h',
-        thermalPointIds: ['2'],
-        points: 500,
-      ),
-    ];
+  Future<void> _loadData() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    // Cargar rutas disponibles
+    _routes = _routeService.getAvailableRoutes();
+
+    // Cargar progreso del usuario
+    _progressMap = await _routeService.getUserRouteProgress(widget.user.id);
+
+    setState(() {
+      _isLoading = false;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    // Calcular estadísticas
+    final completedCount = _progressMap.values.where((p) => p.isCompleted).length;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Rutas & Retos'),
@@ -59,35 +53,40 @@ class _RoutesScreenState extends State<RoutesScreen> {
         backgroundColor: Colors.purple[500],
         foregroundColor: Colors.white,
       ),
-      body: Column(
-        children: [
-          // Header con stats
-          Container(
-            color: Colors.purple[500],
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
               children: [
-                _buildStat('🏆', '${_completedRoutes.length}', 'Completadas'),
-                _buildStat('📍', '${widget.user.points}', 'Puntos'),
-                _buildStat('🗺️', '${_routes.length}', 'Rutas'),
+                // Header con stats
+                Container(
+                  color: Colors.purple[500],
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildStat('🏆', '$completedCount', 'Completadas'),
+                      _buildStat('📍', '${widget.user.points}', 'Puntos'),
+                      _buildStat('🗺️', '${_routes.length}', 'Rutas'),
+                    ],
+                  ),
+                ),
+                // Rutas
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: _loadData,
+                    child: ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _routes.length,
+                      itemBuilder: (context, index) {
+                        final route = _routes[index];
+                        final progress = _progressMap[route.id];
+                        return _buildRouteCard(route, progress);
+                      },
+                    ),
+                  ),
+                ),
               ],
             ),
-          ),
-          // Rutas
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _routes.length,
-              itemBuilder: (context, index) {
-                final route = _routes[index];
-                final isCompleted = _completedRoutes.contains(route.id);
-                return _buildRouteCard(route, isCompleted);
-              },
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -114,8 +113,11 @@ class _RoutesScreenState extends State<RoutesScreen> {
     );
   }
 
-  Widget _buildRouteCard(route_model.Route route, bool isCompleted) {
+  Widget _buildRouteCard(route_model.Route route, UserRouteProgress? progress) {
     final difficultyColor = _getDifficultyColor(route.difficulty);
+    final isCompleted = progress?.isCompleted ?? false;
+    final routeProgress = progress?.progress ?? 0.0;
+    final completedPoints = progress?.completedPointIds.length ?? 0;
 
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -239,17 +241,44 @@ class _RoutesScreenState extends State<RoutesScreen> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                // Progress bar
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: LinearProgressIndicator(
-                    value: isCompleted ? 1.0 : 0.5,
-                    minHeight: 8,
-                    backgroundColor: Colors.grey[300],
-                    valueColor: AlwaysStoppedAnimation(
-                      isCompleted ? Colors.green[500] : Colors.cyan[500],
+                // Progress bar con texto
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Progreso: $completedPoints/${route.thermalPointIds.length} puntos',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[700],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        Text(
+                          '${routeProgress.toStringAsFixed(0)}%',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[700],
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
+                    const SizedBox(height: 6),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: LinearProgressIndicator(
+                        value: routeProgress / 100,
+                        minHeight: 8,
+                        backgroundColor: Colors.grey[300],
+                        valueColor: AlwaysStoppedAnimation(
+                          isCompleted ? Colors.green[500] : Colors.cyan[500],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 12),
                 // Footer

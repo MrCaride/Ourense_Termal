@@ -8,7 +8,7 @@ class DatabaseService {
   static sqflite.Database? _database;
 
   // Versión de la base de datos
-  static const int _version = 2;
+  static const int _version = 3;
   static const String _dbName = 'ourense_termal.db';
 
   factory DatabaseService() {
@@ -164,6 +164,22 @@ class DatabaseService {
       )
     ''');
 
+    // Tabla de progreso de rutas por usuario
+    await db.execute('''
+      CREATE TABLE user_route_progress (
+        id TEXT PRIMARY KEY,
+        userId TEXT NOT NULL,
+        routeId TEXT NOT NULL,
+        progress REAL DEFAULT 0,
+        isCompleted INTEGER DEFAULT 0,
+        completedPointIds TEXT,
+        lastUpdated INTEGER NOT NULL,
+        completedAt INTEGER,
+        syncedWithFirebase INTEGER DEFAULT 0,
+        FOREIGN KEY(userId) REFERENCES users(id)
+      )
+    ''');
+
     debugPrint('Base de datos creada exitosamente');
   }
 
@@ -196,6 +212,24 @@ class DatabaseService {
           description TEXT NOT NULL,
           icon TEXT NOT NULL,
           earnedDate INTEGER NOT NULL,
+          syncedWithFirebase INTEGER DEFAULT 0,
+          FOREIGN KEY(userId) REFERENCES users(id)
+        )
+      ''');
+    }
+    
+    if (oldVersion < 3) {
+      // Agregar tabla de progreso de rutas por usuario
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS user_route_progress (
+          id TEXT PRIMARY KEY,
+          userId TEXT NOT NULL,
+          routeId TEXT NOT NULL,
+          progress REAL DEFAULT 0,
+          isCompleted INTEGER DEFAULT 0,
+          completedPointIds TEXT,
+          lastUpdated INTEGER NOT NULL,
+          completedAt INTEGER,
           syncedWithFirebase INTEGER DEFAULT 0,
           FOREIGN KEY(userId) REFERENCES users(id)
         )

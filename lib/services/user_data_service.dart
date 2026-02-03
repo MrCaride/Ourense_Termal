@@ -3,10 +3,12 @@ import 'package:flutter/foundation.dart';
 import '../models/user_model.dart';
 import '../models/thermal_point_model.dart';
 import 'database_service.dart';
+import 'route_service.dart';
 
 class UserDataService {
   final DatabaseService _databaseService = DatabaseService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final RouteService _routeService = RouteService();
 
   // Obtener check-ins del usuario
   Future<List<CheckIn>> getUserCheckIns(String userId) async {
@@ -77,6 +79,23 @@ class UserDataService {
         'points': checkIn.points,
         'syncedWithFirebase': 0,
       });
+    }
+
+    // Actualizar progreso de rutas que incluyen este punto termal
+    try {
+      final routes = _routeService.getAvailableRoutes();
+      for (final route in routes) {
+        if (route.thermalPointIds.contains(pointId)) {
+          await _routeService.updateRouteProgress(
+            userId: userId,
+            route: route,
+            visitedPointId: pointId,
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error al actualizar progreso de rutas: $e');
+      // No lanzar error, solo registrar
     }
 
     return checkIn;

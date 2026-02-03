@@ -30,8 +30,8 @@ class _RoutesScreenState extends State<RoutesScreen> {
       _isLoading = true;
     });
 
-    // Cargar rutas disponibles
-    _routes = _routeService.getAvailableRoutes();
+    // Cargar rutas disponibles (ahora es método estático)
+    _routes = RouteService.getAvailableRoutes();
 
     // Cargar progreso del usuario
     _progressMap = await _routeService.getUserRouteProgress(widget.user.id);

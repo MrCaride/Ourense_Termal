@@ -83,7 +83,7 @@ class UserDataService {
 
     // Actualizar progreso de rutas que incluyen este punto termal
     try {
-      final routes = _routeService.getAvailableRoutes();
+      final routes = RouteService.getAvailableRoutes();
       for (final route in routes) {
         if (route.thermalPointIds.contains(pointId)) {
           await _routeService.updateRouteProgress(
@@ -218,6 +218,73 @@ class UserDataService {
         'users',
         {
           'points': currentPoints,
+          'level': newLevel,
+          'updatedAt': DateTime.now().millisecondsSinceEpoch,
+          'syncedWithFirebase': 0,
+        },
+        where: 'id = ?',
+        whereArgs: [userId],
+      );
+
+      // Verificar si subió de nivel
+      if (newLevel > currentLevel) {
+        await addBadge(
+          userId: userId,
+          badgeId: 'level_$newLevel',
+          name: 'Nivel $newLevel Alcanzado',
+          description: 'Has alcanzado el nivel $newLevel',
+          icon: '⭐',
+        );
+      }
+    }
+  }
+
+  // Establecer puntos del usuario (no suma, establece el valor exacto)
+  Future<void> setUserPoints(String userId, int newPoints) async {
+    if (kIsWeb) {
+      final userDoc = _firestore.collection('users').doc(userId);
+      final snapshot = await userDoc.get();
+      if (!snapshot.exists) return;
+
+      final data = snapshot.data()!;
+      final currentLevel = data['level'] as int? ?? 1;
+      final newLevel = _calculateLevel(newPoints);
+
+      await userDoc.update({
+        'points': newPoints,
+        'level': newLevel,
+        'updatedAt': DateTime.now(),
+      });
+
+      // Verificar si subió de nivel
+      if (newLevel > currentLevel) {
+        await addBadge(
+          userId: userId,
+          badgeId: 'level_$newLevel',
+          name: 'Nivel $newLevel Alcanzado',
+          description: 'Has alcanzado el nivel $newLevel',
+          icon: '⭐',
+        );
+      }
+    } else {
+      final db = await _databaseService.database;
+      final result = await db.query(
+        'users',
+        where: 'id = ?',
+        whereArgs: [userId],
+        limit: 1,
+      );
+
+      if (result.isEmpty) return;
+
+      final userData = result.first;
+      final currentLevel = userData['level'] as int? ?? 1;
+      final newLevel = _calculateLevel(newPoints);
+
+      await db.update(
+        'users',
+        {
+          'points': newPoints,
           'level': newLevel,
           'updatedAt': DateTime.now().millisecondsSinceEpoch,
           'syncedWithFirebase': 0,

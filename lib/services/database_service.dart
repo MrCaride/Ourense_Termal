@@ -8,7 +8,7 @@ class DatabaseService {
   static sqflite.Database? _database;
 
   // Versión de la base de datos
-  static const int _version = 3;
+  static const int _version = 4;
   static const String _dbName = 'ourense_termal.db';
 
   factory DatabaseService() {
@@ -180,6 +180,20 @@ class DatabaseService {
       )
     ''');
 
+    // Tabla de recompensas canjeadas por usuarios
+    await db.execute('''
+      CREATE TABLE user_redeemed_rewards (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        reward_id TEXT NOT NULL,
+        coupon_code TEXT NOT NULL,
+        redeemed_date INTEGER NOT NULL,
+        used INTEGER DEFAULT 0,
+        syncedWithFirebase INTEGER DEFAULT 0,
+        FOREIGN KEY(user_id) REFERENCES users(id)
+      )
+    ''');
+
     debugPrint('Base de datos creada exitosamente');
   }
 
@@ -232,6 +246,22 @@ class DatabaseService {
           completedAt INTEGER,
           syncedWithFirebase INTEGER DEFAULT 0,
           FOREIGN KEY(userId) REFERENCES users(id)
+        )
+      ''');
+    }
+    
+    if (oldVersion < 4) {
+      // Agregar tabla de recompensas canjeadas por usuarios
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS user_redeemed_rewards (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          reward_id TEXT NOT NULL,
+          coupon_code TEXT NOT NULL,
+          redeemed_date INTEGER NOT NULL,
+          used INTEGER DEFAULT 0,
+          syncedWithFirebase INTEGER DEFAULT 0,
+          FOREIGN KEY(user_id) REFERENCES users(id)
         )
       ''');
     }

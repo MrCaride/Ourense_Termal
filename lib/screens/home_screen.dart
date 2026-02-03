@@ -5,6 +5,7 @@ import '../services/user_data_service.dart';
 import '../data/thermal_points_data.dart';
 import 'map_screen.dart';
 import 'routes_screen.dart';
+import 'rewards_screen.dart';
 import 'profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -87,6 +88,9 @@ class _HomeScreenState extends State<HomeScreen> {
       RoutesScreen(
         user: _user,
       ),
+      RewardsScreen(
+        user: _user,
+      ),
       ProfileScreen(
         user: _user,
         checkIns: userCheckIns,
@@ -97,7 +101,10 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       body: screens[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
         currentIndex: _selectedIndex,
+        selectedItemColor: Colors.blue[700],
+        unselectedItemColor: Colors.grey,
         onTap: (index) {
           setState(() {
             _selectedIndex = index;
@@ -111,6 +118,10 @@ class _HomeScreenState extends State<HomeScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.route),
             label: 'Rutas',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.card_giftcard),
+            label: 'Recompensas',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person),

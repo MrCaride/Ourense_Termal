@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../models/thermal_point_model.dart';
+import '../services/auth_service.dart';
 
 class ProfileScreen extends StatelessWidget {
   final User user;
@@ -223,27 +224,20 @@ class ProfileScreen extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: OutlinedButton.icon(
-                onPressed: () {
+                onPressed: () async {
                   // Mostrar diálogo de confirmación
-                  showDialog(
+                  final confirm = await showDialog<bool>(
                     context: context,
                     builder: (context) => AlertDialog(
                       title: const Text('Cerrar sesión'),
                       content: const Text('¿Estás seguro de que quieres cerrar sesión?'),
                       actions: [
                         TextButton(
-                          onPressed: () => Navigator.pop(context),
+                          onPressed: () => Navigator.pop(context, false),
                           child: const Text('Cancelar'),
                         ),
                         TextButton(
-                          onPressed: () {
-                            Navigator.pop(context); // Cerrar diálogo
-                            Navigator.pushNamedAndRemoveUntil(
-                              context,
-                              '/login',
-                              (route) => false,
-                            );
-                          },
+                          onPressed: () => Navigator.pop(context, true),
                           child: const Text(
                             'Cerrar sesión',
                             style: TextStyle(color: Colors.red),
@@ -252,6 +246,19 @@ class ProfileScreen extends StatelessWidget {
                       ],
                     ),
                   );
+
+                  if (confirm == true && context.mounted) {
+                    // Cerrar sesión
+                    await AuthService().logout();
+                    
+                    if (context.mounted) {
+                      Navigator.pushNamedAndRemoveUntil(
+                        context,
+                        '/login',
+                        (route) => false,
+                      );
+                    }
+                  }
                 },
                 icon: const Icon(Icons.logout),
                 label: const Text('Cerrar sesión'),

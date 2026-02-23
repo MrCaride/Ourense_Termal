@@ -163,14 +163,4 @@ class RewardService {
     return List.generate(8, (index) => chars[random.nextInt(chars.length)])
         .join();
   }
-
-  // Filtrar recompensas por tipo
-  static List<Reward> filterRewardsByType(String type) {
-    if (type == 'all') {
-      return getAvailableRewards();
-    }
-    return getAvailableRewards()
-        .where((reward) => reward.businessType == type)
-        .toList();
-  }
 }

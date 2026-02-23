@@ -3,11 +3,13 @@ import '../models/user_model.dart';
 import '../models/route_model.dart' as route_model;
 import '../models/user_route_progress_model.dart';
 import '../services/route_service.dart';
+import '../data/thermal_points_data.dart';
 
 class RoutesScreen extends StatefulWidget {
   final User user;
+  final VoidCallback? onCheckIn;
 
-  const RoutesScreen({Key? key, required this.user}) : super(key: key);
+  const RoutesScreen({Key? key, required this.user, this.onCheckIn}) : super(key: key);
 
   @override
   State<RoutesScreen> createState() => _RoutesScreenState();
@@ -23,6 +25,14 @@ class _RoutesScreenState extends State<RoutesScreen> {
   void initState() {
     super.initState();
     _loadData();
+  }
+
+  @override
+  void didUpdateWidget(RoutesScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.user.id != widget.user.id) {
+      _loadData();
+    }
   }
 
   Future<void> _loadData() async {
@@ -300,7 +310,9 @@ class _RoutesScreenState extends State<RoutesScreen> {
                     ),
                     if (!isCompleted)
                       FilledButton(
-                        onPressed: () {},
+                        onPressed: () {
+                          _showRouteDetails(context, route);
+                        },
                         style: FilledButton.styleFrom(
                           backgroundColor: Colors.green[500],
                         ),
@@ -327,5 +339,195 @@ class _RoutesScreenState extends State<RoutesScreen> {
       default:
         return Colors.grey[100]!;
     }
+  }
+
+  void _showRouteDetails(BuildContext context, route_model.Route route) {
+    final thermalPoints = ThermalPointsData.getThermalPoints();
+    final routePoints = thermalPoints
+        .where((p) => route.thermalPointIds.contains(p.id))
+        .toList();
+    final progress = _progressMap[route.id];
+    final completedPointIds = progress?.completedPointIds ?? [];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (context, scrollController) => Container(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          route.name,
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          route.description,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              // Stats
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    Column(
+                      children: [
+                        Icon(Icons.location_on, color: Colors.blue[600]),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${route.distance} km',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                    Column(
+                      children: [
+                        Icon(Icons.timer, color: Colors.blue[600]),
+                        const SizedBox(height: 4),
+                        Text(
+                          route.duration,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                    Column(
+                      children: [
+                        Icon(Icons.star, color: Colors.amber[600]),
+                        const SizedBox(height: 4),
+                        Text(
+                          '+${route.points}',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Puntos termales
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue[50],
+                        border: Border.all(color: Colors.blue[200]!),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Puntos termales que componen esta ruta',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue[700],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '${completedPointIds.length}/${route.thermalPointIds.length} visitados',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.blue[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    if (routePoints.isEmpty)
+                      Expanded(
+                        child: Center(
+                          child: Text(
+                            'No se encontraron puntos termales para esta ruta',
+                            style: TextStyle(color: Colors.grey[600]),
+                          ),
+                        ),
+                      )
+                    else
+                      Expanded(
+                        child: ListView.builder(
+                          controller: scrollController,
+                          itemCount: routePoints.length,
+                          itemBuilder: (context, index) {
+                            final point = routePoints[index];
+                            final isCompleted = completedPointIds.contains(point.id);
+                            return Card(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              child: ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: isCompleted
+                                      ? Colors.green[500]
+                                      : Colors.grey[300],
+                                  child: Icon(
+                                    isCompleted ? Icons.check : Icons.location_on,
+                                    color: isCompleted
+                                        ? Colors.white
+                                        : Colors.grey[600],
+                                  ),
+                                ),
+                                title: Text(point.name),
+                                subtitle: Text(point.address),
+                                trailing: isCompleted
+                                    ? const Chip(
+                                        label: Text('Visitado'),
+                                        backgroundColor: Color(0xFF4ade80),
+                                        labelStyle: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 11,
+                                        ),
+                                      )
+                                    : null,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

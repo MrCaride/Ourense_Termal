@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/thermal_point_model.dart';
 import '../services/user_data_service.dart';
+import '../services/route_service.dart';
+import '../data/routes_data.dart';
 
 class ThermalPointDetailScreen extends StatefulWidget {
   final ThermalPoint point;
@@ -22,6 +24,7 @@ class _ThermalPointDetailScreenState extends State<ThermalPointDetailScreen> {
   late bool _checkedIn;
   bool _isLoading = false;
   final UserDataService _userDataService = UserDataService();
+  final RouteService _routeService = RouteService();
 
   @override
   void initState() {
@@ -51,6 +54,18 @@ class _ThermalPointDetailScreenState extends State<ThermalPointDetailScreen> {
 
       // Actualizar puntos del usuario
       await _userDataService.updateUserPoints(widget.userId, 50);
+
+      // Actualizar progreso de todas las rutas que contienen este punto
+      final allRoutes = RoutesData.getAvailableRoutes();
+      for (final route in allRoutes) {
+        if (route.thermalPointIds.contains(widget.point.id)) {
+          await _routeService.updateRouteProgress(
+            userId: widget.userId,
+            route: route,
+            visitedPointId: widget.point.id,
+          );
+        }
+      }
 
       // Verificar si es el primer check-in para dar insignia
       final checkIns = await _userDataService.getUserCheckIns(widget.userId);

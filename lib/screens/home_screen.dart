@@ -87,6 +87,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       RoutesScreen(
         user: _user,
+        onCheckIn: _refreshData,
       ),
       RewardsScreen(
         user: _user,

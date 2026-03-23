@@ -63,6 +63,7 @@ class RewardService {
           'coupon_code': redeemedReward.couponCode,
           'redeemed_date': redeemedReward.redeemedDate.millisecondsSinceEpoch,
           'used': redeemedReward.used ? 1 : 0,
+          'syncedWithFirebase': 0,
         });
       } catch (e) {
         debugPrint('Error guardando recompensa canjeada en SQLite: $e');
@@ -146,7 +147,7 @@ class RewardService {
         final db = await _dbService.database;
         await db.update(
           'user_redeemed_rewards',
-          {'used': 1},
+          {'used': 1, 'syncedWithFirebase': 0},
           where: 'id = ?',
           whereArgs: [redeemedRewardId],
         );

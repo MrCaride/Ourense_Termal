@@ -50,7 +50,7 @@ class RouteService {
   }
 
   // Actualizar progreso de una ruta cuando el usuario visita un punto termal
-  Future<void> updateRouteProgress({
+  Future<bool> updateRouteProgress({
     required String userId,
     required route_model.Route route,
     required String visitedPointId,
@@ -66,6 +66,7 @@ class RouteService {
       completedPointIds: [],
       lastUpdated: DateTime.now(),
     );
+    final wasCompleted = progress.isCompleted;
 
     // Agregar punto visitado si no está ya en la lista
     final updatedPoints = List<String>.from(progress.completedPointIds);
@@ -94,6 +95,7 @@ class RouteService {
 
     // Guardar en la base de datos
     await _saveProgress(progress);
+    return !wasCompleted && isCompleted;
   }
 
   // Guardar progreso en la base de datos

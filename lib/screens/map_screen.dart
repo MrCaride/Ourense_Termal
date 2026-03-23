@@ -34,6 +34,7 @@ class _MapScreenState extends State<MapScreen> {
   final LatLng _ourenseCenter = LatLng(42.3376, -7.8653);
   LatLng? _userLocation;
   bool _isLoadingLocation = true;
+  bool _distanceSortFailed = false;
 
   @override
   void initState() {
@@ -171,6 +172,30 @@ class _MapScreenState extends State<MapScreen> {
       return matchesFilter && matchesSearch;
     }).toList();
 
+    if (_userLocation != null) {
+      try {
+        filteredPoints.sort((a, b) {
+          final distanceA = Geolocator.distanceBetween(
+            _userLocation!.latitude,
+            _userLocation!.longitude,
+            a.latitude,
+            a.longitude,
+          );
+          final distanceB = Geolocator.distanceBetween(
+            _userLocation!.latitude,
+            _userLocation!.longitude,
+            b.latitude,
+            b.longitude,
+          );
+          return distanceA.compareTo(distanceB);
+        });
+        _distanceSortFailed = false;
+      } catch (e) {
+        debugPrint('Error al ordenar por distancia: $e');
+        _distanceSortFailed = true;
+      }
+    }
+
     return Scaffold(
       body: CustomScrollView(
         slivers: [
@@ -228,6 +253,23 @@ class _MapScreenState extends State<MapScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
+                if (_distanceSortFailed)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.orange[50],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.orange[200]!),
+                      ),
+                      child: const Text(
+                        'No se pudo calcular la distancia. Se muestra la lista sin orden específico.',
+                      ),
+                    ),
+                  ),
+                if (_distanceSortFailed) const SizedBox(height: 12),
                 // Mapa interactivo con flutter_map
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -402,12 +444,32 @@ class _MapScreenState extends State<MapScreen> {
                 final hasCheckedIn = widget.checkIns.any((c) => c.pointId == point.id);
                 return Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: _buildThermalPointCard(point, hasCheckedIn),
+                  child: _buildThermalPointCard(
+                    point,
+                    hasCheckedIn,
+                    _userLocation == null
+                        ? null
+                        : Geolocator.distanceBetween(
+                            _userLocation!.latitude,
+                            _userLocation!.longitude,
+                            point.latitude,
+                            point.longitude,
+                          ),
+                  ),
                 );
               },
               childCount: filteredPoints.length,
             ),
           ),
+          if (filteredPoints.isEmpty)
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+                child: Center(
+                  child: Text('No hay puntos disponibles'),
+                ),
+              ),
+            ),
           const SliverPadding(padding: EdgeInsets.only(bottom: 16)),
         ],
       ),
@@ -554,7 +616,11 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  Widget _buildThermalPointCard(ThermalPoint point, bool hasCheckedIn) {
+  Widget _buildThermalPointCard(
+    ThermalPoint point,
+    bool hasCheckedIn,
+    double? distanceInMeters,
+  ) {
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
@@ -655,6 +721,12 @@ class _MapScreenState extends State<MapScreen> {
                         labelStyle: const TextStyle(fontSize: 11),
                       ),
                       const SizedBox(width: 8),
+                      if (distanceInMeters != null)
+                        Chip(
+                          label: Text('${(distanceInMeters / 1000).toStringAsFixed(1)} km'),
+                          labelStyle: const TextStyle(fontSize: 11),
+                        ),
+                      if (distanceInMeters != null) const SizedBox(width: 8),
                       if (point.price != null)
                         Chip(
                           label: Text(point.price!),

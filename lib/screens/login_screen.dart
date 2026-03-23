@@ -32,10 +32,18 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _handleLogin() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
+    final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
 
     if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Por favor completa todos los campos')),
+      );
+      return;
+    }
+
+    if (!emailRegex.hasMatch(email)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('El email no tiene un formato válido')),
       );
       return;
     }
@@ -60,7 +68,7 @@ class _LoginScreenState extends State<LoginScreen> {
       debugPrintStack(stackTrace: s);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error al iniciar sesión')),
+        const SnackBar(content: Text('Error inesperado al iniciar sesión')),
       );
     } finally {
       if (mounted) {
@@ -76,6 +84,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
     final confirm = _confirmPasswordController.text;
+    final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
 
     if (name.isEmpty || email.isEmpty || password.isEmpty || confirm.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -87,6 +96,27 @@ class _LoginScreenState extends State<LoginScreen> {
     if (password != confirm) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Las contraseñas no coinciden')),
+      );
+      return;
+    }
+
+    if (!emailRegex.hasMatch(email)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('El email no tiene un formato válido')),
+      );
+      return;
+    }
+
+    if (name.length < 2) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('El nombre debe tener al menos 2 caracteres')),
+      );
+      return;
+    }
+
+    if (password.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('La contraseña debe tener al menos 6 caracteres')),
       );
       return;
     }
@@ -115,7 +145,7 @@ class _LoginScreenState extends State<LoginScreen> {
       debugPrintStack(stackTrace: s);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error al registrar el usuario')),
+        const SnackBar(content: Text('Error inesperado al registrar el usuario')),
       );
     } finally {
       if (mounted) {

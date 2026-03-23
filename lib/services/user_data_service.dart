@@ -86,11 +86,15 @@ class UserDataService {
       final routes = RouteService.getAvailableRoutes();
       for (final route in routes) {
         if (route.thermalPointIds.contains(pointId)) {
-          await _routeService.updateRouteProgress(
+          final justCompleted = await _routeService.updateRouteProgress(
             userId: userId,
             route: route,
             visitedPointId: pointId,
           );
+
+          if (justCompleted) {
+            await updateUserPoints(userId, route.points);
+          }
         }
       }
     } catch (e) {

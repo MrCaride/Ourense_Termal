@@ -1,9 +1,10 @@
 import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
+import 'package:sqflite/sqflite.dart' show ConflictAlgorithm;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart';
 import 'database_service.dart';
@@ -19,6 +20,8 @@ class AuthException implements Exception {
 class AuthService {
   final DatabaseService _databaseService = DatabaseService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final firebase_auth.FirebaseAuth _firebaseAuth =
+      firebase_auth.FirebaseAuth.instance;
   static const String _userIdKey = 'logged_user_id';
   static const String _userEmailKey = 'logged_user_email';
 
@@ -44,6 +47,7 @@ class AuthService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_userIdKey);
       await prefs.remove(_userEmailKey);
+      await _firebaseAuth.signOut();
     } catch (e) {
       debugPrint('Error al cerrar sesión: $e');
       // No lanzar error, solo registrar
@@ -53,16 +57,21 @@ class AuthService {
   // Obtener usuario de sesión guardada
   Future<User?> getCurrentUser() async {
     try {
+      final firebaseUser = _firebaseAuth.currentUser;
+
       final prefs = await SharedPreferences.getInstance();
       final userId = prefs.getString(_userIdKey);
       final email = prefs.getString(_userEmailKey);
 
-      if (userId == null || email == null) {
+      final effectiveUserId = firebaseUser?.uid ?? userId;
+      final effectiveEmail = firebaseUser?.email ?? email;
+
+      if (effectiveUserId == null || effectiveEmail == null) {
         return null;
       }
 
       if (kIsWeb) {
-        final doc = await _firestore.collection('users').doc(userId).get();
+        final doc = await _firestore.collection('users').doc(effectiveUserId).get();
         if (!doc.exists) {
           await logout();
           return null;
@@ -72,7 +81,7 @@ class AuthService {
         return User(
           id: doc.id,
           name: data['name'] ?? '',
-          email: data['email'] ?? email,
+          email: data['email'] ?? effectiveEmail,
           passwordHash: data['passwordHash'] ?? '',
           points: data['points'] ?? 0,
           level: data['level'] ?? 1,
@@ -83,16 +92,50 @@ class AuthService {
         final result = await db.query(
           'users',
           where: 'id = ?',
-          whereArgs: [userId],
+          whereArgs: [effectiveUserId],
           limit: 1,
         );
 
-        if (result.isEmpty) {
+        if (result.isEmpty && firebaseUser != null) {
+          final remoteDoc = await _firestore
+              .collection('users')
+              .doc(effectiveUserId)
+              .get();
+
+          if (remoteDoc.exists) {
+            final remote = remoteDoc.data()!;
+            await db.insert('users', {
+              'id': effectiveUserId,
+              'name': remote['name'] ?? '',
+              'email': remote['email'] ?? effectiveEmail,
+              'passwordHash': remote['passwordHash'] ?? '',
+              'points': remote['points'] ?? 0,
+              'level': remote['level'] ?? 1,
+              'profileImageUrl': remote['profileImageUrl'],
+              'createdAt': (remote['createdAt'] as Timestamp?)
+                      ?.millisecondsSinceEpoch ??
+                  DateTime.now().millisecondsSinceEpoch,
+              'updatedAt': (remote['updatedAt'] as Timestamp?)
+                      ?.millisecondsSinceEpoch ??
+                  DateTime.now().millisecondsSinceEpoch,
+              'syncedWithFirebase': 1,
+            }, conflictAlgorithm: ConflictAlgorithm.replace);
+          }
+        }
+
+        final refreshed = await db.query(
+          'users',
+          where: 'id = ?',
+          whereArgs: [effectiveUserId],
+          limit: 1,
+        );
+
+        if (refreshed.isEmpty) {
           await logout();
           return null;
         }
 
-        return User.fromMap(Map<String, dynamic>.from(result.first));
+        return User.fromMap(Map<String, dynamic>.from(refreshed.first));
       }
     } catch (e) {
       debugPrint('Error al recuperar sesión: $e');
@@ -110,88 +153,93 @@ class AuthService {
     final passwordHash = _hashPassword(password);
     final now = DateTime.now();
 
-    if (kIsWeb) {
-      try {
-        final existing = await _firestore
-            .collection('users')
-            .where('email', isEqualTo: normalizedEmail)
-            .limit(1)
-            .get();
-        if (existing.docs.isNotEmpty) {
-          throw AuthException('Este email ya está registrado.');
-        }
+    if (name.trim().length < 2) {
+      throw AuthException('El nombre debe tener al menos 2 caracteres.');
+    }
 
-        final docRef = _firestore.collection('users').doc();
-        final user = User(
-          id: docRef.id,
-          name: name.trim(),
-          email: normalizedEmail,
-          passwordHash: passwordHash,
-          points: 0,
-          level: 1,
-          joinedDate: now,
-          badges: [],
-        );
+    final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+    if (!emailRegex.hasMatch(normalizedEmail)) {
+      throw AuthException('El formato del email no es correcto.');
+    }
 
-        await docRef.set({
-          'name': user.name,
-          'email': user.email,
-          'passwordHash': user.passwordHash,
-          'points': 0,
-          'level': 1,
-          'profileImageUrl': null,
-          'createdAt': now,
-          'updatedAt': now,
-        });
+    if (password.length < 6) {
+      throw AuthException('La contraseña debe tener al menos 6 caracteres.');
+    }
 
-        // Guardar sesión
-        await _saveSession(user.id, user.email);
+    try {
+      final credential = await _firebaseAuth.createUserWithEmailAndPassword(
+        email: normalizedEmail,
+        password: password,
+      );
 
-        return user;
-      } on FirebaseException catch (e) {
-        throw AuthException(e.message ?? 'Error al registrar en Firebase.');
+      final uid = credential.user?.uid;
+      if (uid == null) {
+        throw AuthException('No se pudo crear la cuenta. Inténtalo de nuevo.');
       }
+
+      final user = User(
+        id: uid,
+        name: name.trim(),
+        email: normalizedEmail,
+        passwordHash: passwordHash,
+        points: 0,
+        level: 1,
+        joinedDate: now,
+        badges: [],
+      );
+
+      await _firestore.collection('users').doc(uid).set({
+        'name': user.name,
+        'email': user.email,
+        'passwordHash': user.passwordHash,
+        'points': 0,
+        'level': 1,
+        'profileImageUrl': null,
+        'createdAt': now,
+        'updatedAt': now,
+      }, SetOptions(merge: true));
+
+      if (!kIsWeb) {
+        final db = await _databaseService.database;
+        await db.insert(
+          'users',
+          {
+            'id': user.id,
+            'name': user.name,
+            'email': user.email,
+            'passwordHash': user.passwordHash,
+            'points': 0,
+            'level': 1,
+            'profileImageUrl': null,
+            'createdAt': now.millisecondsSinceEpoch,
+            'updatedAt': now.millisecondsSinceEpoch,
+            'syncedWithFirebase': 1,
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+
+      await _saveSession(user.id, user.email);
+      return user;
+    } on firebase_auth.FirebaseAuthException catch (e) {
+      switch (e.code) {
+        case 'email-already-in-use':
+          throw AuthException('Usuario ya existente.');
+        case 'invalid-email':
+          throw AuthException('El formato del email no es correcto.');
+        case 'weak-password':
+          throw AuthException('La contraseña es demasiado débil.');
+        case 'network-request-failed':
+          throw AuthException('Sin conexión. Revisa tu red e inténtalo de nuevo.');
+        default:
+          throw AuthException('Error inesperado al crear la cuenta.');
+      }
+    } on FirebaseException {
+      throw AuthException('Error inesperado al crear la cuenta.');
+    } catch (e) {
+      debugPrint('Error inesperado en register: $e');
+      throw AuthException('Error inesperado al crear la cuenta.');
     }
-
-    final db = await _databaseService.database;
-    final existing = await db.query(
-      'users',
-      where: 'email = ?',
-      whereArgs: [normalizedEmail],
-      limit: 1,
-    );
-    if (existing.isNotEmpty) {
-      throw AuthException('Este email ya está registrado.');
-    }
-
-    final user = User(
-      id: now.millisecondsSinceEpoch.toString(),
-      name: name.trim(),
-      email: normalizedEmail,
-      passwordHash: passwordHash,
-      points: 0,
-      level: 1,
-      joinedDate: now,
-      badges: [],
-    );
-
-    await db.insert('users', {
-      'id': user.id,
-      'name': user.name,
-      'email': user.email,
-      'passwordHash': user.passwordHash,
-      'points': 0,
-      'level': 1,
-      'profileImageUrl': null,
-      'createdAt': now.millisecondsSinceEpoch,
-      'updatedAt': now.millisecondsSinceEpoch,
-      'syncedWithFirebase': 0,
-    });
-
-    // Guardar sesión
-    await _saveSession(user.id, user.email);
-
-    return user;
   }
 
   Future<User> login({
@@ -201,64 +249,153 @@ class AuthService {
     final normalizedEmail = email.trim().toLowerCase();
     final passwordHash = _hashPassword(password);
 
-    if (kIsWeb) {
-      try {
-        final snapshot = await _firestore
-            .collection('users')
-            .where('email', isEqualTo: normalizedEmail)
-            .limit(1)
-            .get();
+    final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+    if (!emailRegex.hasMatch(normalizedEmail)) {
+      throw AuthException('El formato del email no es correcto.');
+    }
 
-        if (snapshot.docs.isEmpty) {
-          throw AuthException('Credenciales incorrectas.');
+    if (password.isEmpty) {
+      throw AuthException('Debes introducir tu contraseña.');
+    }
+
+    if (!kIsWeb) {
+      // Escenario offline-first: primero validamos en SQLite.
+      final db = await _databaseService.database;
+      final localResult = await db.query(
+        'users',
+        where: 'email = ?',
+        whereArgs: [normalizedEmail],
+        limit: 1,
+      );
+
+      if (localResult.isNotEmpty) {
+        final userMap = localResult.first;
+        if ((userMap['passwordHash'] as String? ?? '') != passwordHash) {
+          throw AuthException('Credenciales inválidas.');
         }
 
-        final data = snapshot.docs.first.data();
-        if ((data['passwordHash'] ?? '') != passwordHash) {
-          throw AuthException('Credenciales incorrectas.');
-        }
+        final localUser = User.fromMap(Map<String, dynamic>.from(userMap));
+        await _saveSession(localUser.id, localUser.email);
 
-        final user = User(
-          id: snapshot.docs.first.id,
-          name: data['name'] ?? '',
-          email: data['email'] ?? normalizedEmail,
-          passwordHash: data['passwordHash'] ?? '',
-          points: data['points'] ?? 0,
-          level: data['level'] ?? 1,
-          joinedDate: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+        // No bloqueante: intenta refrescar contra Firebase si hay red.
+        _refreshLocalUserFromFirebase(
+          email: normalizedEmail,
+          password: password,
+          localPasswordHash: passwordHash,
         );
 
-        // Guardar sesión
-        await _saveSession(user.id, user.email);
-
-        return user;
-      } on FirebaseException catch (e) {
-        throw AuthException(e.message ?? 'Error al iniciar sesión en Firebase.');
+        return localUser;
       }
     }
 
-    final db = await _databaseService.database;
-    final result = await db.query(
-      'users',
-      where: 'email = ?',
-      whereArgs: [normalizedEmail],
-      limit: 1,
-    );
+    try {
+      final credential = await _firebaseAuth.signInWithEmailAndPassword(
+        email: normalizedEmail,
+        password: password,
+      );
 
-    if (result.isEmpty) {
-      throw AuthException('Credenciales incorrectas.');
+      final uid = credential.user?.uid;
+      if (uid == null) {
+        throw AuthException('No se pudo iniciar sesión.');
+      }
+
+      final profileDoc = await _firestore.collection('users').doc(uid).get();
+      if (!profileDoc.exists) {
+        throw AuthException('Usuario no registrado.');
+      }
+
+      final data = profileDoc.data()!;
+      final user = User(
+        id: uid,
+        name: data['name'] ?? '',
+        email: data['email'] ?? normalizedEmail,
+        passwordHash: data['passwordHash'] ?? passwordHash,
+        points: data['points'] ?? 0,
+        level: data['level'] ?? 1,
+        joinedDate: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      );
+
+      if (!kIsWeb) {
+        final db = await _databaseService.database;
+        await db.insert(
+          'users',
+          {
+            'id': user.id,
+            'name': user.name,
+            'email': user.email,
+            'passwordHash': user.passwordHash,
+            'points': user.points,
+            'level': user.level,
+            'profileImageUrl': data['profileImageUrl'],
+            'createdAt': (data['createdAt'] as Timestamp?)?.millisecondsSinceEpoch ??
+                DateTime.now().millisecondsSinceEpoch,
+            'updatedAt': DateTime.now().millisecondsSinceEpoch,
+            'syncedWithFirebase': 1,
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+
+      await _saveSession(user.id, user.email);
+      return user;
+    } on firebase_auth.FirebaseAuthException catch (e) {
+      switch (e.code) {
+        case 'invalid-credential':
+        case 'wrong-password':
+          throw AuthException('Credenciales inválidas.');
+        case 'user-not-found':
+          throw AuthException('Usuario no registrado.');
+        case 'network-request-failed':
+          throw AuthException(
+            'Sin conexión y no existe una copia local para validar.',
+          );
+        default:
+          throw AuthException('Error al iniciar sesión. Inténtalo de nuevo.');
+      }
+    } catch (e) {
+      debugPrint('Error inesperado en login: $e');
+      throw AuthException('Error al iniciar sesión. Inténtalo de nuevo.');
     }
+  }
 
-    final userMap = result.first;
-    if ((userMap['passwordHash'] as String? ?? '') != passwordHash) {
-      throw AuthException('Credenciales incorrectas.');
+  Future<void> _refreshLocalUserFromFirebase({
+    required String email,
+    required String password,
+    required String localPasswordHash,
+  }) async {
+    try {
+      final credential = await _firebaseAuth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      final uid = credential.user?.uid;
+      if (uid == null) return;
+
+      final profileDoc = await _firestore.collection('users').doc(uid).get();
+      if (!profileDoc.exists || kIsWeb) return;
+
+      final data = profileDoc.data()!;
+      final db = await _databaseService.database;
+      await db.insert(
+        'users',
+        {
+          'id': uid,
+          'name': data['name'] ?? '',
+          'email': data['email'] ?? email,
+          'passwordHash': data['passwordHash'] ?? localPasswordHash,
+          'points': data['points'] ?? 0,
+          'level': data['level'] ?? 1,
+          'profileImageUrl': data['profileImageUrl'],
+          'createdAt': (data['createdAt'] as Timestamp?)?.millisecondsSinceEpoch ??
+              DateTime.now().millisecondsSinceEpoch,
+          'updatedAt': DateTime.now().millisecondsSinceEpoch,
+          'syncedWithFirebase': 1,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    } catch (_) {
+      // No bloquea el login offline exitoso.
     }
-
-    final user = User.fromMap(Map<String, dynamic>.from(userMap));
-
-    // Guardar sesión
-    await _saveSession(user.id, user.email);
-
-    return user;
   }
 }

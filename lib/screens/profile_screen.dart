@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../models/thermal_point_model.dart';
+import '../data/badges_data.dart';
 import '../services/auth_service.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -17,6 +18,9 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final allBadges = BadgesData.getBadgeDefinitions();
+    final unlockedIds = user.badges.map((b) => b.id).toSet();
+
     return Scaffold(
       body: CustomScrollView(
         slivers: [
@@ -218,6 +222,88 @@ class ProfileScreen extends StatelessWidget {
                 childCount: user.badges.length,
               ),
             ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Text(
+                'Todas las insignias',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+            ),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            sliver: SliverGrid(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                mainAxisSpacing: 10,
+                crossAxisSpacing: 10,
+                childAspectRatio: 0.9,
+              ),
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  final badge = allBadges[index];
+                  final unlocked = unlockedIds.contains(badge.id);
+                  return InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: Text(badge.name),
+                          content: Text(
+                            '${badge.description}\n\n'
+                            'Estado: ${unlocked ? 'Desbloqueada' : 'No desbloqueada'}\n'
+                            'Puntos: ${badge.points}',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('Cerrar'),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: unlocked ? Colors.green : Colors.grey[300]!,
+                        ),
+                        color: unlocked ? Colors.green[50] : Colors.grey[100],
+                      ),
+                      padding: const EdgeInsets.all(8),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            unlocked ? badge.icon : '🔒',
+                            style: const TextStyle(fontSize: 24),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            badge.name,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: unlocked ? Colors.black : Colors.grey[600],
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+                childCount: allBadges.length,
+              ),
+            ),
+          ),
           const SliverPadding(padding: EdgeInsets.only(top: 16)),
           // Botón de logout
           SliverToBoxAdapter(

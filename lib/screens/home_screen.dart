@@ -67,6 +67,31 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  void _showTutorial() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Tutorial de la aplicación'),
+        content: const SingleChildScrollView(
+          child: Text(
+            '1. Regístrate o inicia sesión para acceder al contenido.\n\n'
+            '2. En Mapa puedes ver puntos termales cercanos y hacer check-in.\n\n'
+            '3. En Rutas puedes seguir recorridos y completar objetivos.\n\n'
+            '4. Al completar visitas y rutas acumulas puntos y subes de nivel.\n\n'
+            '5. En Recompensas puedes canjear tus puntos por beneficios.\n\n'
+            '6. En Perfil puedes consultar progreso, nivel e insignias.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cerrar'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -101,6 +126,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       body: screens[_selectedIndex],
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showTutorial,
+        icon: const Icon(Icons.help_outline),
+        label: const Text('Ayuda'),
+      ),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         currentIndex: _selectedIndex,

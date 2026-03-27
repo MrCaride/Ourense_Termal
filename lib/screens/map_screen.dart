@@ -6,6 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import '../models/user_model.dart';
 import '../models/thermal_point_model.dart';
 import 'thermal_point_detail_screen.dart';
+import '../utils/app_theme.dart';
 
 class MapScreen extends StatefulWidget {
   final List<ThermalPoint> thermalPoints;
@@ -203,12 +204,32 @@ class _MapScreenState extends State<MapScreen> {
           SliverAppBar(
             expandedHeight: 200,
             pinned: true,
+            backgroundColor: Colors.transparent,
             flexibleSpace: FlexibleSpaceBar(
               title: const Text('Mapa Termal'),
               background: Container(
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Colors.cyan[500]!, Colors.blue[500]!],
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      AppTheme.brandTeal,
+                      Color(0xFF0284C7),
+                      Color(0xFF14B8A6),
+                    ],
+                  ),
+                ),
+                child: Align(
+                  alignment: Alignment.bottomLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 52),
+                    child: Text(
+                      'Explora fuentes, pozas y balnearios',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Colors.white.withValues(alpha: 0.88),
+                            fontWeight: FontWeight.w500,
+                          ),
+                    ),
                   ),
                 ),
               ),
@@ -278,7 +299,7 @@ class _MapScreenState extends State<MapScreen> {
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
+                        color: Colors.black.withValues(alpha: 0.12),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),

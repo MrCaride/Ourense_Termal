@@ -4,6 +4,7 @@ import '../models/route_model.dart' as route_model;
 import '../models/user_route_progress_model.dart';
 import '../services/route_service.dart';
 import '../data/thermal_points_data.dart';
+import '../utils/app_theme.dart';
 
 class RoutesScreen extends StatefulWidget {
   final User user;
@@ -55,29 +56,71 @@ class _RoutesScreenState extends State<RoutesScreen> {
   Widget build(BuildContext context) {
     // Calcular estadísticas
     final completedCount = _progressMap.values.where((p) => p.isCompleted).length;
+    final completionRatio = _routes.isEmpty ? 0.0 : completedCount / _routes.length;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Rutas & Retos'),
-        elevation: 0,
-        backgroundColor: Colors.purple[500],
-        foregroundColor: Colors.white,
-      ),
+      appBar: AppBar(title: const Text('Rutas & Retos')),
+      backgroundColor: const Color(0xFFF6FAFD),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
-                // Header con stats
-                Container(
-                  color: Colors.purple[500],
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildStat('🏆', '$completedCount', 'Completadas'),
-                      _buildStat('📍', '${widget.user.points}', 'Puntos'),
-                      _buildStat('🗺️', '${_routes.length}', 'Rutas'),
-                    ],
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+                  child: Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(24),
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [AppTheme.brandTeal, Color(0xFF0284C7), Color(0xFF0EA5A4)],
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.12),
+                          blurRadius: 20,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Tu progreso de exploración',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 18,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '$completedCount de ${_routes.length} rutas completadas',
+                          style: const TextStyle(color: Colors.white70),
+                        ),
+                        const SizedBox(height: 12),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(999),
+                          child: LinearProgressIndicator(
+                            minHeight: 8,
+                            value: completionRatio,
+                            backgroundColor: Colors.white.withValues(alpha: 0.2),
+                            valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            _buildStat(Icons.flag_rounded, '$completedCount', 'Completadas'),
+                            _buildStat(Icons.stars_rounded, '${widget.user.points}', 'Puntos'),
+                            _buildStat(Icons.route_rounded, '${_routes.length}', 'Rutas'),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 // Rutas
@@ -100,11 +143,11 @@ class _RoutesScreenState extends State<RoutesScreen> {
     );
   }
 
-  Widget _buildStat(String icon, String value, String label) {
+  Widget _buildStat(IconData icon, String value, String label) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(icon, style: const TextStyle(fontSize: 24)),
+        Icon(icon, color: Colors.white, size: 24),
         const SizedBox(height: 4),
         Text(
           value,
@@ -130,11 +173,19 @@ class _RoutesScreenState extends State<RoutesScreen> {
     final completedPoints = progress?.completedPointIds.length ?? 0;
 
     return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      margin: const EdgeInsets.only(bottom: 14),
+      elevation: 0,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Container(
+            height: 8,
+            decoration: BoxDecoration(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              gradient: LinearGradient(colors: _routeAccent(route.difficulty)),
+            ),
+          ),
           if (isCompleted)
             Container(
               width: double.infinity,
@@ -142,8 +193,8 @@ class _RoutesScreenState extends State<RoutesScreen> {
               decoration: BoxDecoration(
                 color: Colors.green[500],
                 borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(16),
-                  topRight: Radius.circular(16),
+                  topLeft: Radius.circular(0),
+                  topRight: Radius.circular(0),
                 ),
               ),
               child: const Row(
@@ -169,7 +220,8 @@ class _RoutesScreenState extends State<RoutesScreen> {
                   children: [
                     Chip(
                       label: Text(route.theme),
-                      labelStyle: const TextStyle(fontSize: 11),
+                      labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                      backgroundColor: const Color(0xFFE6F4F1),
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                     ),
                     Container(
@@ -183,7 +235,7 @@ class _RoutesScreenState extends State<RoutesScreen> {
                       ),
                       child: Text(
                         route.getDifficultyLabel(),
-                        style: const TextStyle(fontSize: 11),
+                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
                       ),
                     ),
                   ],
@@ -193,8 +245,8 @@ class _RoutesScreenState extends State<RoutesScreen> {
                 Text(
                   route.name,
                   style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -210,42 +262,56 @@ class _RoutesScreenState extends State<RoutesScreen> {
                 Row(
                   children: [
                     Expanded(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.location_on, size: 16, color: Colors.grey[500]),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${route.distance} km',
-                            style: const TextStyle(fontSize: 12),
-                          ),
-                        ],
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
+                            const SizedBox(width: 4),
+                            Text('${route.distance} km', style: const TextStyle(fontSize: 12)),
+                          ],
+                        ),
                       ),
                     ),
+                    const SizedBox(width: 8),
                     Expanded(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.timer, size: 16, color: Colors.grey[500]),
-                          const SizedBox(width: 4),
-                          Text(
-                            route.duration,
-                            style: const TextStyle(fontSize: 12),
-                          ),
-                        ],
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.timer, size: 16, color: Colors.grey[600]),
+                            const SizedBox(width: 4),
+                            Text(route.duration, style: const TextStyle(fontSize: 12)),
+                          ],
+                        ),
                       ),
                     ),
+                    const SizedBox(width: 8),
                     Expanded(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.pin_drop, size: 16, color: Colors.grey[500]),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${route.thermalPointIds.length} puntos',
-                            style: const TextStyle(fontSize: 12),
-                          ),
-                        ],
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.pin_drop, size: 16, color: Colors.grey[600]),
+                            const SizedBox(width: 4),
+                            Text('${route.thermalPointIds.length} pts', style: const TextStyle(fontSize: 12)),
+                          ],
+                        ),
                       ),
                     ),
                   ],
@@ -314,7 +380,10 @@ class _RoutesScreenState extends State<RoutesScreen> {
                           _showRouteDetails(context, route);
                         },
                         style: FilledButton.styleFrom(
-                          backgroundColor: Colors.green[500],
+                          backgroundColor: AppTheme.brandTeal,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                         child: const Text('Ver más'),
                       ),
@@ -338,6 +407,19 @@ class _RoutesScreenState extends State<RoutesScreen> {
         return Colors.red[100]!;
       default:
         return Colors.grey[100]!;
+    }
+  }
+
+  List<Color> _routeAccent(String difficulty) {
+    switch (difficulty) {
+      case 'easy':
+        return const [Color(0xFF16A34A), Color(0xFF22C55E)];
+      case 'moderate':
+        return const [Color(0xFFD97706), Color(0xFFF59E0B)];
+      case 'hard':
+        return const [Color(0xFFDC2626), Color(0xFFEF4444)];
+      default:
+        return const [Color(0xFF0D9488), Color(0xFF06B6D4)];
     }
   }
 

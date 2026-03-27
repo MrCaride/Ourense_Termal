@@ -3,6 +3,7 @@ import '../models/user_model.dart';
 import '../models/thermal_point_model.dart';
 import '../data/badges_data.dart';
 import '../services/auth_service.dart';
+import '../utils/app_theme.dart';
 
 class ProfileScreen extends StatelessWidget {
   final User user;
@@ -22,54 +23,103 @@ class ProfileScreen extends StatelessWidget {
     final unlockedIds = user.badges.map((b) => b.id).toSet();
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF6FAFD),
       body: CustomScrollView(
         slivers: [
-          // Header
-          SliverAppBar(
-            expandedHeight: 220,
-            pinned: true,
-            flexibleSpace: FlexibleSpaceBar(
-              background: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Colors.cyan[500]!, Colors.blue[500]!],
-                  ),
+          SliverToBoxAdapter(
+            child: Container(
+              margin: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [AppTheme.brandTeal, Color(0xFF0284C7), Color(0xFF0EA5A4)],
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                borderRadius: BorderRadius.circular(28),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.14),
+                    blurRadius: 24,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  Row(
                     children: [
-                      const SizedBox(height: 40),
-                      CircleAvatar(
-                        radius: 40,
-                        backgroundColor: Colors.white,
-                        child: Icon(
-                          Icons.person,
-                          size: 40,
-                          color: Colors.cyan[500],
+                      Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withValues(alpha: 0.25),
+                        ),
+                        child: CircleAvatar(
+                          radius: 32,
+                          backgroundColor: Colors.white,
+                          child: Icon(Icons.person, size: 34, color: Colors.teal[600]),
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      Text(
-                        user.name,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              user.name,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              user.email,
+                              style: const TextStyle(color: Colors.white70),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        user.email,
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 13,
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          'Nivel ${user.level}',
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
                         ),
                       ),
                     ],
                   ),
-                ),
+                  const SizedBox(height: 14),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(999),
+                    child: LinearProgressIndicator(
+                      value: user.getLevelProgress(),
+                      minHeight: 8,
+                      backgroundColor: Colors.white.withValues(alpha: 0.2),
+                      valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        user.getLevelTitle(),
+                        style: const TextStyle(color: Colors.white70),
+                      ),
+                      Text(
+                        '${user.getPointsToNextLevel()} pts para subir',
+                        style: const TextStyle(color: Colors.white70),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ),
@@ -147,9 +197,9 @@ class ProfileScreen extends StatelessWidget {
                 mainAxisSpacing: 12,
                 crossAxisSpacing: 12,
                 children: [
-                  _buildStatCard('🏆', user.points.toString(), 'Puntos'),
-                  _buildStatCard('📍', checkIns.length.toString(), 'Visitas'),
-                  _buildStatCard('🎖️', user.badges.length.toString(), 'Insignias'),
+                  _buildStatCard(Icons.stars_rounded, user.points.toString(), 'Puntos'),
+                  _buildStatCard(Icons.location_on_rounded, checkIns.length.toString(), 'Visitas'),
+                  _buildStatCard(Icons.verified_rounded, user.badges.length.toString(), 'Insignias'),
                 ],
               ),
             ),
@@ -362,22 +412,22 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStatCard(String icon, String value, String label) {
+  Widget _buildStatCard(IconData icon, String value, String label) {
     return Card(
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(icon, style: const TextStyle(fontSize: 24)),
+            Icon(icon, size: 24, color: AppTheme.brandTeal),
             const SizedBox(height: 8),
             Text(
               value,
               style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
               ),
             ),
             const SizedBox(height: 4),

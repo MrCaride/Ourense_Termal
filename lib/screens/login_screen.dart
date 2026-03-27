@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'home_screen.dart';
+import '../utils/app_theme.dart';
 
 enum AuthMode { login, register }
 
@@ -159,81 +160,108 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.cyan[500]!,
-              Colors.blue[500]!,
-              Colors.blue[600]!,
-            ],
+      body: Stack(
+        children: [
+          Container(decoration: const BoxDecoration(gradient: AppTheme.heroGradient)),
+          Positioned(
+            top: -80,
+            right: -40,
+            child: Container(
+              width: 220,
+              height: 220,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.13),
+              ),
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Card(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(32),
+          Positioned(
+            bottom: -100,
+            left: -60,
+            child: Container(
+              width: 260,
+              height: 260,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.08),
+              ),
+            ),
+          ),
+          SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Container(
+                  constraints: const BoxConstraints(maxWidth: 480),
+                  padding: const EdgeInsets.all(28),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.95),
+                    borderRadius: BorderRadius.circular(28),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.8)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.16),
+                        blurRadius: 28,
+                        offset: const Offset(0, 12),
+                      ),
+                    ],
+                  ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // Logo
-                      Container(
-                        width: 64,
-                        height: 64,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [Colors.cyan[500]!, Colors.blue[500]!],
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 56,
+                            height: 56,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(16),
+                              gradient: const LinearGradient(
+                                colors: [AppTheme.brandTeal, AppTheme.brandCyan],
+                              ),
+                            ),
+                            child: const Icon(Icons.water_drop, color: Colors.white, size: 28),
                           ),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: const Icon(
-                          Icons.water_drop,
-                          color: Colors.white,
-                          size: 32,
-                        ),
+                        ],
                       ),
                       const SizedBox(height: 16),
-                      // Título
-                      const Text(
+                      Text(
                         'Ourense Termal',
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey,
-                        ),
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              color: AppTheme.brandSlate,
+                            ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       Text(
                         _authMode == AuthMode.login
-                            ? 'Inicia sesión para continuar'
-                            : 'Crea tu cuenta para comenzar tu aventura termal',
+                            ? 'Vuelve a sumergirte en la experiencia termal'
+                            : 'Crea tu cuenta y empieza tu ruta de bienestar',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: Colors.grey,
-                          fontSize: 14,
-                        ),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Colors.black.withValues(alpha: 0.62),
+                            ),
                       ),
-                      const SizedBox(height: 32),
-                      // Selector login/registro
+                      const SizedBox(height: 24),
                       SegmentedButton<AuthMode>(
+                        style: ButtonStyle(
+                          backgroundColor: WidgetStatePropertyAll(
+                            AppTheme.brandTeal.withValues(alpha: 0.08),
+                          ),
+                        ),
                         segments: const [
                           ButtonSegment(
                             value: AuthMode.login,
-                            label: Text('Iniciar sesión'),
+                            label: Text('Entrar'),
                             icon: Icon(Icons.login),
                           ),
                           ButtonSegment(
                             value: AuthMode.register,
-                            label: Text('Registrarse'),
-                            icon: Icon(Icons.person_add),
+                            label: Text('Crear cuenta'),
+                            icon: Icon(Icons.person_add_alt_1),
                           ),
                         ],
                         selected: {_authMode},
@@ -243,106 +271,85 @@ class _LoginScreenState extends State<LoginScreen> {
                           });
                         },
                       ),
-                      const SizedBox(height: 16),
-                      // Campo nombre (solo registro)
+                      const SizedBox(height: 18),
                       if (_authMode == AuthMode.register) ...[
                         TextField(
                           controller: _nameController,
-                          decoration: InputDecoration(
-                            labelText: 'Nombre',
-                            hintText: 'Tu nombre',
-                            prefixIcon: const Icon(Icons.person),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Colors.grey),
-                            ),
+                          textInputAction: TextInputAction.next,
+                          decoration: const InputDecoration(
+                            labelText: 'Nombre completo',
+                            prefixIcon: Icon(Icons.person_outline),
                           ),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 14),
                       ],
-                      // Campo email
                       TextField(
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
-                        decoration: InputDecoration(
-                          labelText: 'Email',
-                          hintText: 'tu@email.com',
-                          prefixIcon: const Icon(Icons.mail),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Colors.grey),
-                          ),
+                        textInputAction: TextInputAction.next,
+                        decoration: const InputDecoration(
+                          labelText: 'Correo electrónico',
+                          prefixIcon: Icon(Icons.alternate_email_rounded),
                         ),
                       ),
-                      const SizedBox(height: 24),
-                      // Campo contraseña
+                      const SizedBox(height: 14),
                       TextField(
                         controller: _passwordController,
                         obscureText: true,
-                        decoration: InputDecoration(
+                        textInputAction: _authMode == AuthMode.register
+                            ? TextInputAction.next
+                            : TextInputAction.done,
+                        decoration: const InputDecoration(
                           labelText: 'Contraseña',
-                          prefixIcon: const Icon(Icons.lock),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Colors.grey),
-                          ),
+                          prefixIcon: Icon(Icons.lock_outline_rounded),
                         ),
                       ),
                       if (_authMode == AuthMode.register) ...[
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 14),
                         TextField(
                           controller: _confirmPasswordController,
                           obscureText: true,
-                          decoration: InputDecoration(
-                            labelText: 'Repetir contraseña',
-                            prefixIcon: const Icon(Icons.lock_outline),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Colors.grey),
-                            ),
+                          textInputAction: TextInputAction.done,
+                          decoration: const InputDecoration(
+                            labelText: 'Confirmar contraseña',
+                            prefixIcon: Icon(Icons.verified_user_outlined),
                           ),
                         ),
                       ],
-                      const SizedBox(height: 24),
-                      // Botón login/registro
-                      SizedBox(
-                        width: double.infinity,
-                        child: FilledButton(
-                          onPressed: _isLoading
-                              ? null
-                              : (_authMode == AuthMode.login
-                                  ? _handleLogin
-                                  : _handleRegister),
-                          style: FilledButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: _isLoading
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : Text(
-                                  _authMode == AuthMode.login
-                                      ? 'Iniciar sesión'
-                                      : 'Registrarse',
+                      const SizedBox(height: 22),
+                      FilledButton(
+                        onPressed: _isLoading
+                            ? null
+                            : (_authMode == AuthMode.login
+                                ? _handleLogin
+                                : _handleRegister),
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                height: 22,
+                                width: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
                                 ),
-                        ),
+                              )
+                            : Text(
+                                _authMode == AuthMode.login
+                                    ? 'Acceder'
+                                    : 'Crear cuenta',
+                                style: const TextStyle(fontWeight: FontWeight.w700),
+                              ),
                       ),
-                      const SizedBox(height: 16),
-                      // Disclaimer
-                      const Text(
-                        'Al continuar, aceptas permitir el acceso a tu ubicación para mejorar tu experiencia',
+                      const SizedBox(height: 14),
+                      Text(
+                        'Usamos tu ubicación para ordenar puntos termales por cercanía y mejorar la experiencia.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey,
-                        ),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Colors.black.withValues(alpha: 0.56),
+                              height: 1.45,
+                            ),
                       ),
                     ],
                   ),
@@ -350,7 +357,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }

@@ -4,6 +4,7 @@ import '../models/reward_model.dart';
 import '../services/reward_service.dart';
 import '../services/user_data_service.dart';
 import 'reward_detail_screen.dart';
+import '../utils/app_theme.dart';
 
 class RewardsScreen extends StatefulWidget {
   final User user;
@@ -108,13 +109,8 @@ class _RewardsScreenState extends State<RewardsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: const Text('Recompensas'),
-        backgroundColor: Colors.blue[700],
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
+      backgroundColor: const Color(0xFFF6FAFD),
+      appBar: AppBar(title: const Text('Recompensas')),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -135,58 +131,94 @@ class _RewardsScreenState extends State<RewardsScreen> {
   }
 
   Widget _buildPointsHeader() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.blue[700]!, Colors.blue[500]!],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [AppTheme.brandTeal, Color(0xFF0EA5A4), Color(0xFF0284C7)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.12),
+              blurRadius: 22,
+              offset: const Offset(0, 10),
+            ),
+          ],
         ),
-      ),
-      child: Column(
-        children: [
-          const Text(
-            'Tus Puntos',
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.stars, color: Colors.amber, size: 32),
-              const SizedBox(width: 8),
-              Text(
-                '${_user.points}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 40,
-                  fontWeight: FontWeight.bold,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.workspace_premium, color: Colors.white),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Nivel ${_user.level}',
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 14,
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Tu cartera termal',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                Text(
+                  'Nivel ${_user.level}',
+                  style: const TextStyle(color: Colors.white70),
+                ),
+              ],
             ),
-          ),
-        ],
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                const Icon(Icons.stars_rounded, color: Colors.amberAccent, size: 32),
+                const SizedBox(width: 8),
+                Text(
+                  '${_user.points}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 36,
+                    fontWeight: FontWeight.w800,
+                    height: 1,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Text('puntos', style: TextStyle(color: Colors.white70)),
+              ],
+            ),
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: LinearProgressIndicator(
+                value: _user.getLevelProgress(),
+                minHeight: 7,
+                backgroundColor: Colors.white.withValues(alpha: 0.22),
+                valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildFilterChips() {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
@@ -195,6 +227,11 @@ class _RewardsScreenState extends State<RewardsScreen> {
             return Padding(
               padding: const EdgeInsets.only(right: 8),
               child: FilterChip(
+                side: BorderSide(
+                  color: isSelected
+                      ? AppTheme.brandTeal
+                      : Colors.black.withValues(alpha: 0.08),
+                ),
                 selected: isSelected,
                 label: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -208,11 +245,12 @@ class _RewardsScreenState extends State<RewardsScreen> {
                     Text(entry.value),
                   ],
                 ),
-                selectedColor: Colors.blue[700],
+                selectedColor: AppTheme.brandTeal,
                 checkmarkColor: Colors.white,
+                backgroundColor: Colors.white,
                 labelStyle: TextStyle(
-                  color: isSelected ? Colors.white : Colors.blue[700],
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  color: isSelected ? Colors.white : AppTheme.brandTeal,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
                 ),
                 onSelected: (_) => _applyFilter(entry.key),
               ),
@@ -240,28 +278,42 @@ class _RewardsScreenState extends State<RewardsScreen> {
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: InkWell(
         onTap: () => _navigateToRewardDetail(reward),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Imagen
             ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
               child: Stack(
                 children: [
                   Image.network(
                     reward.imageUrl,
-                    height: 180,
+                    height: 190,
                     width: double.infinity,
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) => Container(
                       height: 180,
                       color: Colors.grey[300],
                       child: const Icon(Icons.image, size: 50, color: Colors.grey),
+                    ),
+                  ),
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.bottomCenter,
+                          end: Alignment.topCenter,
+                          colors: [
+                            Colors.black.withValues(alpha: 0.44),
+                            Colors.transparent,
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                   if (hasRedeemed)
@@ -322,57 +374,60 @@ class _RewardsScreenState extends State<RewardsScreen> {
                       ),
                     ),
                   ),
+                  Positioned(
+                    left: 14,
+                    right: 14,
+                    bottom: 12,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            reward.title,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 18,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.18),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
+                          ),
+                          child: Text(
+                            reward.discount,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
             // Contenido
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Título y descuento
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              reward.title,
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              reward.businessName,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.orange[100],
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          reward.discount,
-                          style: TextStyle(
-                            color: Colors.orange[900],
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ],
+                  Text(
+                    reward.businessName,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[700],
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   // Descripción
@@ -419,25 +474,26 @@ class _RewardsScreenState extends State<RewardsScreen> {
                           Text(
                             '${reward.pointsCost} puntos',
                             style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: canAfford ? Colors.blue[700] : Colors.grey,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
+                              color: canAfford ? AppTheme.brandTeal : Colors.grey,
                             ),
                           ),
                         ],
                       ),
-                      ElevatedButton(
+                      FilledButton(
                         onPressed: () => _navigateToRewardDetail(reward),
-                        style: ElevatedButton.styleFrom(
+                        style: FilledButton.styleFrom(
                           backgroundColor: hasRedeemed
                               ? Colors.green
                               : canAfford
-                                  ? Colors.blue[700]
+                                  ? AppTheme.brandTeal
                                   : Colors.grey[400],
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
+                            borderRadius: BorderRadius.circular(14),
                           ),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                         ),
                         child: Text(
                           hasRedeemed ? 'Ver cupón' : 'Canjear',

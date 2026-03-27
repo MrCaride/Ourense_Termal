@@ -13,6 +13,7 @@ import 'services/sync_service.dart';
 import 'services/auth_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
+import 'utils/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -48,14 +49,7 @@ class OurenseTermalApp extends StatelessWidget {
     return MaterialApp(
       title: 'Ourense Termal',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF06B6D4), // Cyan
-          brightness: Brightness.light,
-        ),
-        fontFamily: 'Roboto',
-      ),
+      theme: AppTheme.light,
       home: const AuthChecker(),
       routes: {
         '/login': (context) => const LoginScreen(),

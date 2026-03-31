@@ -1,4 +1,3 @@
-import '../models/thermal_point_model.dart';
 
 class BadgesData {
   static List<BadgeDefinition> getBadgeDefinitions() {

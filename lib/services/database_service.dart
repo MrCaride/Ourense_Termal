@@ -8,7 +8,7 @@ class DatabaseService {
   static sqflite.Database? _database;
 
   // Versión de la base de datos
-  static const int _version = 4;
+  static const int _version = 5;
   static const String _dbName = 'ourense_termal.db';
 
   factory DatabaseService() {
@@ -49,6 +49,8 @@ class DatabaseService {
         passwordHash TEXT NOT NULL,
         points INTEGER DEFAULT 0,
         level INTEGER DEFAULT 1,
+        role TEXT DEFAULT 'user',
+        thermalPointId TEXT,
         profileImageUrl TEXT,
         createdAt INTEGER NOT NULL,
         updatedAt INTEGER NOT NULL,
@@ -264,6 +266,12 @@ class DatabaseService {
           FOREIGN KEY(user_id) REFERENCES users(id)
         )
       ''');
+    }
+
+    if (oldVersion < 5) {
+      // Agregar columnas de rol y punto termal asignado
+      await db.execute("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'");
+      await db.execute("ALTER TABLE users ADD COLUMN thermalPointId TEXT");
     }
   }
 

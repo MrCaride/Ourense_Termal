@@ -15,12 +15,12 @@ class MapScreen extends StatefulWidget {
   final VoidCallback? onCheckIn;
 
   const MapScreen({
-    Key? key,
+    super.key,
     required this.thermalPoints,
     required this.user,
     required this.checkIns,
     this.onCheckIn,
-  }) : super(key: key);
+  });
 
   @override
   State<MapScreen> createState() => _MapScreenState();
@@ -602,6 +602,7 @@ class _MapScreenState extends State<MapScreen> {
                           point: point,
                           hasCheckedIn: hasCheckedIn,
                           userId: widget.user.id,
+                          user: widget.user,
                         ),
                       ),
                     );
@@ -656,6 +657,7 @@ class _MapScreenState extends State<MapScreen> {
                 point: point,
                 hasCheckedIn: hasCheckedIn,
                 userId: widget.user.id,
+                user: widget.user,
               ),
             ),
           );

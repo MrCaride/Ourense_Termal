@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart' show ConflictAlgorithm;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart';
+import '../models/user_role.dart';
 import 'database_service.dart';
 
 class AuthException implements Exception {
@@ -86,6 +87,8 @@ class AuthService {
           points: data['points'] ?? 0,
           level: data['level'] ?? 1,
           joinedDate: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+          role: UserRole.fromString(data['role'] as String? ?? 'user'),
+          thermalPointId: data['thermalPointId'] as String?,
         );
       } else {
         final db = await _databaseService.database;
@@ -148,6 +151,7 @@ class AuthService {
     required String name,
     required String email,
     required String password,
+    UserRole role = UserRole.user,
   }) async {
     final normalizedEmail = email.trim().toLowerCase();
     final passwordHash = _hashPassword(password);
@@ -185,6 +189,7 @@ class AuthService {
         points: 0,
         level: 1,
         joinedDate: now,
+        role: role,
         badges: [],
       );
 
@@ -194,6 +199,7 @@ class AuthService {
         'passwordHash': user.passwordHash,
         'points': 0,
         'level': 1,
+        'role': role.getValue(),
         'profileImageUrl': null,
         'createdAt': now,
         'updatedAt': now,
@@ -210,6 +216,7 @@ class AuthService {
             'passwordHash': user.passwordHash,
             'points': 0,
             'level': 1,
+            'role': role.getValue(),
             'profileImageUrl': null,
             'createdAt': now.millisecondsSinceEpoch,
             'updatedAt': now.millisecondsSinceEpoch,

@@ -1,18 +1,22 @@
 import 'package:flutter/material.dart';
 import '../models/thermal_point_model.dart';
+import '../models/user_model.dart';
 import '../services/user_data_service.dart';
+import 'qr_scanner_screen.dart';
 
 class ThermalPointDetailScreen extends StatefulWidget {
   final ThermalPoint point;
   final bool hasCheckedIn;
   final String userId;
+  final User? user; // Agregado para pasar a QR Scanner
 
   const ThermalPointDetailScreen({
-    Key? key,
+    super.key,
     required this.point,
     required this.hasCheckedIn,
     required this.userId,
-  }) : super(key: key);
+    this.user,
+  });
 
   @override
   State<ThermalPointDetailScreen> createState() => _ThermalPointDetailScreenState();
@@ -20,7 +24,7 @@ class ThermalPointDetailScreen extends StatefulWidget {
 
 class _ThermalPointDetailScreenState extends State<ThermalPointDetailScreen> {
   late bool _checkedIn;
-  bool _isLoading = false;
+  final bool _isLoading = false;
   final UserDataService _userDataService = UserDataService();
 
   @override
@@ -37,54 +41,32 @@ class _ThermalPointDetailScreenState extends State<ThermalPointDetailScreen> {
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      // Crear check-in
-      await _userDataService.createCheckIn(
-        userId: widget.userId,
-        pointId: widget.point.id,
-        points: 50,
+    if (widget.user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo identificar el usuario')),
       );
+      return;
+    }
 
-      // Actualizar puntos del usuario
-      await _userDataService.updateUserPoints(widget.userId, 50);
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => QRScannerScreen(
+          user: widget.user!,
+          thermalPoint: widget.point,
+        ),
+      ),
+    );
 
-      // Verificar si es el primer check-in para dar insignia
-      final checkIns = await _userDataService.getUserCheckIns(widget.userId);
-      if (checkIns.length == 1) {
-        await _userDataService.addBadge(
-          userId: widget.userId,
-          badgeId: 'first_checkin',
-          name: 'Primera Visita',
-          description: 'Has visitado tu primer punto termal',
-          icon: '🎯',
-        );
-      }
-
+    if (result == true) {
       setState(() {
         _checkedIn = true;
-        _isLoading = false;
       });
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('¡Check-in realizado! +50 puntos')),
-      );
-
-      // Devolver true para indicar que se hizo check-in
       Navigator.pop(context, true);
-    } catch (e) {
-      debugPrint('Error al hacer check-in: $e');
-      setState(() {
-        _isLoading = false;
-      });
-      
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error al hacer check-in')),
+        const SnackBar(content: Text('Check-in realizado correctamente')),
       );
     }
   }
@@ -283,7 +265,7 @@ class _ThermalPointDetailScreenState extends State<ThermalPointDetailScreen> {
                           ),
                         ),
                       )
-                      .toList(),
+                      ,
                   const SizedBox(height: 24),
                   // Botón check-in
                   if (!_checkedIn)

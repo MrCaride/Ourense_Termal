@@ -9,7 +9,7 @@ import '../utils/app_theme.dart';
 class RewardsScreen extends StatefulWidget {
   final User user;
 
-  const RewardsScreen({Key? key, required this.user}) : super(key: key);
+  const RewardsScreen({super.key, required this.user});
 
   @override
   State<RewardsScreen> createState() => _RewardsScreenState();

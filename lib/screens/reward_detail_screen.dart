@@ -12,12 +12,12 @@ class RewardDetailScreen extends StatefulWidget {
   final bool hasRedeemed;
 
   const RewardDetailScreen({
-    Key? key,
+    super.key,
     required this.reward,
     required this.user,
     required this.canAfford,
     required this.hasRedeemed,
-  }) : super(key: key);
+  });
 
   @override
   State<RewardDetailScreen> createState() => _RewardDetailScreenState();

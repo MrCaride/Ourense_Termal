@@ -1,27 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:sqflite/sqflite.dart' show databaseFactory;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-// Importar el plugin web de shared_preferences para Web
-import 'package:shared_preferences_web/shared_preferences_web.dart';
+
 
 import 'firebase_options.dart';
-import 'services/database_service.dart';
-import 'services/sync_service.dart';
 import 'services/auth_service.dart';
 import 'screens/login_screen.dart';
-import 'screens/home_screen.dart';
+import 'widgets/role_based_navigator.dart';
 import 'utils/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Registrar el plugin de SharedPreferences para web
-  if (kIsWeb) {
-    SharedPreferencesPlugin.registerWith(null);
-  }
 
   if (!kIsWeb &&
       (defaultTargetPlatform == TargetPlatform.windows ||
@@ -42,7 +33,7 @@ Future<void> main() async {
 }
 
 class OurenseTermalApp extends StatelessWidget {
-  const OurenseTermalApp({Key? key}) : super(key: key);
+  const OurenseTermalApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -60,7 +51,7 @@ class OurenseTermalApp extends StatelessWidget {
 
 // Widget que verifica si hay una sesión activa
 class AuthChecker extends StatefulWidget {
-  const AuthChecker({Key? key}) : super(key: key);
+  const AuthChecker({super.key});
 
   @override
   State<AuthChecker> createState() => _AuthCheckerState();
@@ -85,9 +76,9 @@ class _AuthCheckerState extends State<AuthChecker> {
     });
 
     if (user != null) {
-      // Si hay sesión, ir al HomeScreen
+      // Si hay sesión, ir a la pantalla según el rol
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => HomeScreen(user: user)),
+        MaterialPageRoute(builder: (_) => RoleBasedNavigator(user: user)),
       );
     } else {
       // Si no hay sesión, ir al LoginScreen

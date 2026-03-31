@@ -1,3 +1,5 @@
+import 'user_role.dart';
+
 class AchievementBadge {
   final String id;
   final String name;
@@ -38,6 +40,8 @@ class User {
   int points;
   int level;
   DateTime joinedDate;
+  UserRole role;
+  String? thermalPointId; // Para gerentes de termas
   List<AchievementBadge> badges;
   List<RedeemedReward> redeemedRewards;
 
@@ -49,6 +53,8 @@ class User {
     this.points = 0,
     this.level = 1,
     required this.joinedDate,
+    this.role = UserRole.user,
+    this.thermalPointId,
     this.badges = const [],
     this.redeemedRewards = const [],
   });
@@ -57,6 +63,8 @@ class User {
     return {
       'id': id,
       'name': name,
+      'role': role.getValue(),
+      'thermalPointId': thermalPointId,
       'email': email,
       if (includePassword) 'passwordHash': passwordHash,
       'points': points,
@@ -71,6 +79,8 @@ class User {
       id: map['id'] as String,
       name: map['name'] as String? ?? '',
       email: map['email'] as String? ?? '',
+      role: UserRole.fromString(map['role'] as String? ?? 'user'),
+      thermalPointId: map['thermalPointId'] as String?,
       passwordHash: map['passwordHash'] as String? ?? '',
       points: map['points'] as int? ?? 0,
       level: map['level'] as int? ?? 1,

@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
-import 'home_screen.dart';
+import '../widgets/role_based_navigator.dart';
+import '../models/user_role.dart';
 import '../utils/app_theme.dart';
 
 enum AuthMode { login, register }
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+  const LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -20,6 +21,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _confirmPasswordController = TextEditingController();
   bool _isLoading = false;
   AuthMode _authMode = AuthMode.login;
+  UserRole _selectedRole = UserRole.user;
 
   @override
   void dispose() {
@@ -57,7 +59,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final user = await _authService.login(email: email, password: password);
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => HomeScreen(user: user)),
+        MaterialPageRoute(builder: (_) => RoleBasedNavigator(user: user)),
       );
     } on AuthException catch (e) {
       if (!mounted) return;
@@ -131,10 +133,11 @@ class _LoginScreenState extends State<LoginScreen> {
         name: name,
         email: email,
         password: password,
+        role: _selectedRole,
       );
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => HomeScreen(user: user)),
+        MaterialPageRoute(builder: (_) => RoleBasedNavigator(user: user)),
       );
     } on AuthException catch (e) {
       if (!mounted) return;
@@ -280,6 +283,51 @@ class _LoginScreenState extends State<LoginScreen> {
                             labelText: 'Nombre completo',
                             prefixIcon: Icon(Icons.person_outline),
                           ),
+                        ),
+                        Text(
+                          'Tipo de cuenta',
+                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        SegmentedButton<UserRole>(
+                          style: ButtonStyle(
+                            backgroundColor: WidgetStatePropertyAll(
+                              AppTheme.brandTeal.withValues(alpha: 0.08),
+                            ),
+                          ),
+                          segments: const [
+                            ButtonSegment(
+                              value: UserRole.user,
+                              label: Text('Usuario'),
+                              icon: Icon(Icons.person),
+                            ),
+                            ButtonSegment(
+                              value: UserRole.thermalManager,
+                              label: Text('Gerente'),
+                              icon: Icon(Icons.manage_accounts),
+                            ),
+                            ButtonSegment(
+                              value: UserRole.admin,
+                              label: Text('Admin'),
+                              icon: Icon(Icons.admin_panel_settings),
+                            ),
+                          ],
+                          selected: {_selectedRole},
+                          onSelectionChanged: (value) {
+                            setState(() {
+                              _selectedRole = value.first;
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 14),
+                        Text(
+                          'Modo temporal: puedes crear cuentas admin desde este formulario.',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Colors.orange[800],
+                                fontWeight: FontWeight.w600,
+                              ),
                         ),
                         const SizedBox(height: 14),
                       ],

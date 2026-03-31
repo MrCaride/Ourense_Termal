@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../models/user_model.dart';
+import '../models/user_role.dart';
 import '../models/thermal_point_model.dart';
 import 'database_service.dart';
 import 'route_service.dart';
@@ -383,5 +384,103 @@ class UserDataService {
       limit: 1,
     );
     return result.isNotEmpty;
+  }
+
+  // Obtener todos los usuarios (solo admin)
+  Future<List<User>> getAllUsers() async {
+    if (kIsWeb) {
+      final snapshot = await _firestore.collection('users').get();
+      final users = <User>[];
+      
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final badges = await getUserBadges(doc.id);
+        users.add(User(
+          id: doc.id,
+          name: data['name'] as String? ?? '',
+          email: data['email'] as String? ?? '',
+          passwordHash: data['passwordHash'] as String? ?? '',
+          points: data['points'] as int? ?? 0,
+          level: data['level'] as int? ?? 1,
+          role: data['role'] != null 
+            ? UserRole.fromString(data['role'] as String) 
+            : UserRole.user,
+          thermalPointId: data['thermalPointId'] as String?,
+          joinedDate: data['createdAt'] != null
+            ? (data['createdAt'] as Timestamp).toDate()
+            : DateTime.now(),
+          badges: badges,
+        ));
+      }
+      
+      return users;
+    }
+
+    final db = await _databaseService.database;
+    final result = await db.query('users');
+    final users = <User>[];
+
+    for (var row in result) {
+      final badges = await getUserBadges(row['id'] as String);
+      users.add(User(
+        id: row['id'] as String,
+        name: row['name'] as String? ?? '',
+        email: row['email'] as String? ?? '',
+        passwordHash: row['passwordHash'] as String? ?? '',
+        points: row['points'] as int? ?? 0,
+        level: row['level'] as int? ?? 1,
+        role: row['role'] != null 
+          ? UserRole.fromString(row['role'] as String) 
+          : UserRole.user,
+        thermalPointId: row['thermalPointId'] as String?,
+        joinedDate: DateTime.fromMillisecondsSinceEpoch(
+          row['createdAt'] as int? ?? DateTime.now().millisecondsSinceEpoch,
+        ),
+        badges: badges,
+      ));
+    }
+
+    return users;
+  }
+
+  // Eliminar un usuario (solo admin)
+  Future<void> deleteUser(String userId) async {
+    if (kIsWeb) {
+      await _firestore.collection('users').doc(userId).delete();
+      // También eliminar check-ins del usuario
+      final checkIns = await _firestore
+          .collection('check_ins')
+          .where('userId', isEqualTo: userId)
+          .get();
+      for (var doc in checkIns.docs) {
+        await doc.reference.delete();
+      }
+    } else {
+      final db = await _databaseService.database;
+      await db.delete('users', where: 'id = ?', whereArgs: [userId]);
+      await db.delete('check_ins', where: 'userId = ?', whereArgs: [userId]);
+      await db.delete('achievements', where: 'userId = ?', whereArgs: [userId]);
+    }
+  }
+
+  // Asignar un punto termal a un gerente
+  Future<void> assignThermalPointToManager(String managerId, String? thermalPointId) async {
+    if (kIsWeb) {
+      await _firestore.collection('users').doc(managerId).update({
+        'thermalPointId': thermalPointId,
+      });
+    } else {
+      final db = await _databaseService.database;
+      await db.update(
+        'users',
+        {
+          'thermalPointId': thermalPointId,
+          'updatedAt': DateTime.now().millisecondsSinceEpoch,
+          'syncedWithFirebase': 0,
+        },
+        where: 'id = ?',
+        whereArgs: [managerId],
+      );
+    }
   }
 }

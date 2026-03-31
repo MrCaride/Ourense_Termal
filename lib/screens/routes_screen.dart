@@ -10,7 +10,7 @@ class RoutesScreen extends StatefulWidget {
   final User user;
   final VoidCallback? onCheckIn;
 
-  const RoutesScreen({Key? key, required this.user, this.onCheckIn}) : super(key: key);
+  const RoutesScreen({super.key, required this.user, this.onCheckIn});
 
   @override
   State<RoutesScreen> createState() => _RoutesScreenState();

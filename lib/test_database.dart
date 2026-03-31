@@ -6,7 +6,7 @@ import 'package:ourense_termal/services/sync_service.dart';
 /// Copia este código en un widget para probar la instalación
 
 class DatabaseTestWidget extends StatefulWidget {
-  const DatabaseTestWidget({Key? key}) : super(key: key);
+  const DatabaseTestWidget({super.key});
 
   @override
   State<DatabaseTestWidget> createState() => _DatabaseTestWidgetState();

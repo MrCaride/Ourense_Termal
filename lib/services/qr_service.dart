@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
 import '../models/active_qr_model.dart';
 
 /// Servicio para validar y gestionar códigos QR
@@ -22,8 +21,7 @@ class QRService {
       }
 
       return ActiveQR.fromMap(doc.docs.first.data());
-    } catch (e) {
-      debugPrint('Error obteniendo QR activo: $e');
+    } catch (_) {
       return null;
     }
   }
@@ -69,8 +67,7 @@ class QRService {
       }
 
       return newQR;
-    } catch (e) {
-      debugPrint('Error generando nuevo QR: $e');
+    } catch (_) {
       rethrow;
     }
   }
@@ -91,7 +88,6 @@ class QRService {
       final activeQR = await getActiveQR(thermalPointId);
 
       if (activeQR == null) {
-        debugPrint('No hay QR activo para: $thermalPointId');
         return null;
       }
 
@@ -100,10 +96,8 @@ class QRService {
         return thermalPointId;
       }
 
-      debugPrint('QR no válido o expirado: $scannedCode');
       return null;
-    } catch (e) {
-      debugPrint('Error validando QR: $e');
+    } catch (_) {
       return null;
     }
   }
@@ -119,8 +113,7 @@ class QRService {
           .get();
 
       return docs.docs.map((doc) => ActiveQR.fromMap(doc.data())).toList();
-    } catch (e) {
-      debugPrint('Error obteniendo historial de QR: $e');
+    } catch (_) {
       return [];
     }
   }

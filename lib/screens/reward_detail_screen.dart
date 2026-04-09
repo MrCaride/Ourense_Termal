@@ -54,8 +54,7 @@ class _RewardDetailScreenState extends State<RewardDetailScreen> {
       if (found.id.isNotEmpty) {
         setState(() => _redeemedReward = found);
       }
-    } catch (e) {
-      debugPrint('Error cargando recompensa canjeada: $e');
+    } catch (_) {
     }
   }
 

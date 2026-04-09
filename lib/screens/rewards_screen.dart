@@ -66,8 +66,7 @@ class _RewardsScreenState extends State<RewardsScreen> {
       _redeemedRewards = await _rewardService.getUserRedeemedRewards(_user.id);
       
       setState(() => _isLoading = false);
-    } catch (e) {
-      debugPrint('Error cargando recompensas: $e');
+    } catch (_) {
       setState(() => _isLoading = false);
     }
   }

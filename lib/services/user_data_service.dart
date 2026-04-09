@@ -98,8 +98,7 @@ class UserDataService {
           }
         }
       }
-    } catch (e) {
-      debugPrint('Error al actualizar progreso de rutas: $e');
+    } catch (_) {
       // No lanzar error, solo registrar
     }
 

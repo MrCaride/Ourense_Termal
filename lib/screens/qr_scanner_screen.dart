@@ -126,8 +126,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
 
         // El QR es válido, proceder con el check-in
         await _performCheckIn();
-      } catch (e) {
-        debugPrint('Error procesando QR: $e');
+      } catch (_) {
         if (mounted) {
           setState(() {
             _errorMessage = 'Error al procesar QR';
@@ -167,8 +166,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
 
       // Mostrar éxito y cerrar
       _showSuccessDialog();
-    } catch (e) {
-      debugPrint('Error en check-in: $e');
+    } catch (_) {
       if (mounted) {
         setState(() {
           _errorMessage = 'Error al realizar check-in';
@@ -397,9 +395,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
                 ),
               );
             },
-            onScannerStarted: (args) {
-              debugPrint('Scanner iniciado: ${args != null}');
-            },
+            onScannerStarted: (_) {},
           ),
 
           // Overlay con marco de escaneo
@@ -614,8 +610,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
 
       // El QR es válido, proceder con el check-in
       await _performCheckIn();
-    } catch (e) {
-      debugPrint('Error validando QR manual: $e');
+    } catch (_) {
       if (mounted) {
         setState(() {
           _errorMessage = 'Error al validar QR';

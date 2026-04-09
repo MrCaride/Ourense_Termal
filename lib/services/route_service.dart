@@ -25,8 +25,7 @@ class RouteService {
           final progress = UserRouteProgress.fromFirestore(doc.id, doc.data());
           progressMap[progress.routeId] = progress;
         }
-      } catch (e) {
-        debugPrint('Error al cargar progreso de rutas desde Firestore: $e');
+      } catch (_) {
       }
     } else {
       try {
@@ -41,8 +40,7 @@ class RouteService {
           final progress = UserRouteProgress.fromMap(Map<String, dynamic>.from(row));
           progressMap[progress.routeId] = progress;
         }
-      } catch (e) {
-        debugPrint('Error al cargar progreso de rutas desde SQLite: $e');
+      } catch (_) {
       }
     }
 
@@ -106,8 +104,7 @@ class RouteService {
             .collection('user_route_progress')
             .doc(progress.id)
             .set(progress.toFirestore(), SetOptions(merge: true));
-      } catch (e) {
-        debugPrint('Error al guardar progreso en Firestore: $e');
+      } catch (_) {
       }
     } else {
       try {
@@ -121,8 +118,7 @@ class RouteService {
           },
           conflictAlgorithm: ConflictAlgorithm.replace,
         );
-      } catch (e) {
-        debugPrint('Error al guardar progreso en SQLite: $e');
+      } catch (_) {
       }
     }
   }
@@ -140,8 +136,7 @@ class RouteService {
     if (kIsWeb) {
       try {
         await _firestore.collection('user_route_progress').doc(id).delete();
-      } catch (e) {
-        debugPrint('Error al reiniciar progreso en Firestore: $e');
+      } catch (_) {
       }
     } else {
       try {
@@ -151,8 +146,7 @@ class RouteService {
           where: 'id = ?',
           whereArgs: [id],
         );
-      } catch (e) {
-        debugPrint('Error al reiniciar progreso en SQLite: $e');
+      } catch (_) {
       }
     }
   }

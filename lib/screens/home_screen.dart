@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
 import '../models/user_model.dart';
+import '../models/user_role.dart';
 import '../models/thermal_point_model.dart';
 import '../services/user_data_service.dart';
 import '../data/thermal_points_data.dart';
@@ -8,6 +9,7 @@ import 'map_screen.dart';
 import 'routes_screen.dart';
 import 'rewards_screen.dart';
 import 'profile_screen.dart';
+import '../widgets/role_based_navigator.dart';
 import '../utils/app_theme.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -38,6 +40,14 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _initializeData() async {
     _user = widget.user;
 
+    // Esta pantalla es solo para usuarios normales.
+    if (_user.role != UserRole.user) {
+      setState(() {
+        _isLoading = false;
+      });
+      return;
+    }
+
     // Puntos termales desde datos locales ampliados
     _thermalPoints = ThermalPointsData.getThermalPoints();
 
@@ -51,8 +61,7 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         _isLoading = false;
       });
-    } catch (e) {
-      debugPrint('Error cargando datos del usuario: $e');
+    } catch (_) {
       setState(() {
         _isLoading = false;
       });
@@ -64,8 +73,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _checkIns = await _userDataService.getUserCheckIns(_user.id);
       _user = await _userDataService.getUserWithStats(_user.id);
       setState(() {});
-    } catch (e) {
-      debugPrint('Error actualizando datos: $e');
+    } catch (_) {
     }
   }
 
@@ -96,6 +104,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_user.role != UserRole.user) {
+      return RoleBasedNavigator(user: _user);
+    }
+
     if (_isLoading) {
       return const Scaffold(
         body: Center(

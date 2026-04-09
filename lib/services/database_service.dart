@@ -1,6 +1,5 @@
 import 'package:sqflite/sqflite.dart' as sqflite;
 import 'package:path/path.dart';
-import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class DatabaseService {
@@ -38,8 +37,6 @@ class DatabaseService {
 
   // Crear las tablas en la primera ejecución
   Future<void> _onCreate(sqflite.Database db, int version) async {
-    debugPrint('Creando base de datos SQLite...');
-    
     // Tabla de usuarios
     await db.execute('''
       CREATE TABLE users (
@@ -196,12 +193,10 @@ class DatabaseService {
       )
     ''');
 
-    debugPrint('Base de datos creada exitosamente');
   }
 
   // Manejar actualizaciones de esquema
   Future<void> _onUpgrade(sqflite.Database db, int oldVersion, int newVersion) async {
-    debugPrint('Actualizando base de datos de v$oldVersion a v$newVersion');
     if (oldVersion < 2) {
       await db.execute("ALTER TABLE users ADD COLUMN passwordHash TEXT NOT NULL DEFAULT ''");
       await db.execute('ALTER TABLE users ADD COLUMN points INTEGER DEFAULT 0');

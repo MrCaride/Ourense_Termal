@@ -4,7 +4,6 @@ Future<bool> requestWebCameraPermission() async {
   try {
     final mediaDevices = html.window.navigator.mediaDevices;
     if (mediaDevices == null) {
-      print('mediaDevices no disponible en este navegador');
       return false;
     }
 
@@ -17,14 +16,11 @@ Future<bool> requestWebCameraPermission() async {
         track.stop();
       }
 
-      print('Permiso de cámara concedido correctamente');
       return true;
-    } catch (permError) {
-      print('Error al solicitar permiso: $permError');
+    } catch (_) {
       return false;
     }
-  } catch (e) {
-    print('Error crítico en requestWebCameraPermission: $e');
+  } catch (_) {
     return false;
   }
 }

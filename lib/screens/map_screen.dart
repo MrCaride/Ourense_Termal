@@ -191,8 +191,7 @@ class _MapScreenState extends State<MapScreen> {
           return distanceA.compareTo(distanceB);
         });
         _distanceSortFailed = false;
-      } catch (e) {
-        debugPrint('Error al ordenar por distancia: $e');
+      } catch (_) {
         _distanceSortFailed = true;
       }
     }

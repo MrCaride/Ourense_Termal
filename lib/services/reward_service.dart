@@ -46,8 +46,7 @@ class RewardService {
         'redeemedDate': Timestamp.fromDate(redeemedReward.redeemedDate),
         'used': redeemedReward.used,
       });
-    } catch (e) {
-      debugPrint('Error guardando recompensa canjeada en Firestore: $e');
+    } catch (_) {
     }
 
     // Solo intentar guardar en SQLite si no estamos en web
@@ -64,8 +63,7 @@ class RewardService {
           'used': redeemedReward.used ? 1 : 0,
           'syncedWithFirebase': 0,
         });
-      } catch (e) {
-        debugPrint('Error guardando recompensa canjeada en SQLite: $e');
+      } catch (_) {
       }
     }
 
@@ -95,8 +93,7 @@ class RewardService {
           used: data['used'] ?? false,
         );
       }).toList();
-    } catch (e) {
-      debugPrint('Error obteniendo recompensas de Firestore: $e');
+    } catch (_) {
 
       // Fallback a SQLite (solo si no estamos en web)
       if (!kIsWeb) {
@@ -118,8 +115,7 @@ class RewardService {
               used: map['used'] == 1,
             );
           }).toList();
-        } catch (e) {
-          debugPrint('Error obteniendo recompensas de SQLite: $e');
+        } catch (_) {
         }
       }
     }
@@ -136,8 +132,7 @@ class RewardService {
           .collection('redeemed_rewards')
           .doc(redeemedRewardId)
           .update({'used': true});
-    } catch (e) {
-      debugPrint('Error actualizando recompensa en Firestore: $e');
+    } catch (_) {
     }
 
     // Solo intentar actualizar en SQLite si no estamos en web
@@ -150,8 +145,7 @@ class RewardService {
           where: 'id = ?',
           whereArgs: [redeemedRewardId],
         );
-      } catch (e) {
-        debugPrint('Error actualizando recompensa en SQLite: $e');
+      } catch (_) {
       }
     }
   }

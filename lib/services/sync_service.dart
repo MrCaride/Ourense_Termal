@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:sqflite/sqflite.dart';
-import 'package:flutter/foundation.dart';
 import 'dart:async';
 import 'database_service.dart';
 
@@ -42,7 +41,6 @@ class SyncService {
   // Sincronizar usuarios desde SQLite a Firebase
   Future<void> syncUsersToFirebase() async {
     try {
-      debugPrint('Iniciando sincronización de usuarios a Firebase...');
       final db = await _databaseService.database;
       
       // Obtener usuarios no sincronizados
@@ -103,16 +101,13 @@ class SyncService {
           whereArgs: [user['id']],
         );
       }
-      debugPrint('${unsyncedUsers.length} usuarios sincronizados a Firebase');
-    } catch (e) {
-      debugPrint('Error al sincronizar usuarios: $e');
+    } catch (_) {
     }
   }
 
   // Sincronizar puntos termales desde SQLite a Firebase
   Future<void> syncThermalPointsToFirebase() async {
     try {
-      debugPrint('Iniciando sincronización de puntos termales a Firebase...');
       final db = await _databaseService.database;
       
       final unsyncedPoints = await db.query(
@@ -156,16 +151,13 @@ class SyncService {
           whereArgs: [pointId],
         );
       }
-      debugPrint('${unsyncedPoints.length} puntos termales sincronizados a Firebase');
-    } catch (e) {
-      debugPrint('Error al sincronizar puntos termales: $e');
+    } catch (_) {
     }
   }
 
   // Descargar datos desde Firebase a SQLite
   Future<void> downloadUsersFromFirebase() async {
     try {
-      debugPrint('Descargando usuarios desde Firebase...');
       final db = await _databaseService.database;
       
       final snapshot = await _withRetry(() => _firestore.collection('users').get());
@@ -207,16 +199,13 @@ class SyncService {
           conflictAlgorithm: ConflictAlgorithm.replace,
         );
       }
-      debugPrint('${snapshot.docs.length} usuarios descargados desde Firebase');
-    } catch (e) {
-      debugPrint('Error al descargar usuarios: $e');
+    } catch (_) {
     }
   }
 
   // Descargar puntos termales desde Firebase
   Future<void> downloadThermalPointsFromFirebase() async {
     try {
-      debugPrint('Descargando puntos termales desde Firebase...');
       final db = await _databaseService.database;
       
         final snapshot =
@@ -259,16 +248,13 @@ class SyncService {
           conflictAlgorithm: ConflictAlgorithm.replace,
         );
       }
-      debugPrint('${snapshot.docs.length} puntos termales descargados desde Firebase');
-    } catch (e) {
-      debugPrint('Error al descargar puntos termales: $e');
+    } catch (_) {
     }
   }
 
   // Sincronización bidireccional completa
   Future<void> syncAll() async {
     try {
-      debugPrint('Iniciando sincronización completa...');
       await Future.wait([
         syncUsersToFirebase(),
         syncThermalPointsToFirebase(),
@@ -280,16 +266,13 @@ class SyncService {
         downloadThermalPointsFromFirebase(),
         downloadUserRouteProgressFromFirebase(),
       ]);
-      debugPrint('Sincronización completa finalizada');
-    } catch (e) {
-      debugPrint('Error durante la sincronización completa: $e');
+    } catch (_) {
     }
   }
 
   // Sincronizar check-ins a Firebase
   Future<void> syncCheckInsToFirebase() async {
     try {
-      debugPrint('Iniciando sincronización de check-ins a Firebase...');
       final db = await _databaseService.database;
       
       final unsyncedCheckIns = await db.query(
@@ -316,16 +299,13 @@ class SyncService {
           whereArgs: [checkIn['id']],
         );
       }
-      debugPrint('${unsyncedCheckIns.length} check-ins sincronizados a Firebase');
-    } catch (e) {
-      debugPrint('Error al sincronizar check-ins: $e');
+    } catch (_) {
     }
   }
 
   // Sincronizar badges a Firebase
   Future<void> syncBadgesToFirebase() async {
     try {
-      debugPrint('Iniciando sincronización de badges a Firebase...');
       final db = await _databaseService.database;
       
       final unsyncedBadges = await db.query(
@@ -353,9 +333,7 @@ class SyncService {
           whereArgs: [badge['id']],
         );
       }
-      debugPrint('${unsyncedBadges.length} badges sincronizados a Firebase');
-    } catch (e) {
-      debugPrint('Error al sincronizar badges: $e');
+    } catch (_) {
     }
   }
 
@@ -397,8 +375,7 @@ class SyncService {
           whereArgs: [id],
         );
       }
-    } catch (e) {
-      debugPrint('Error al sincronizar progreso de rutas: $e');
+    } catch (_) {
     }
   }
 
@@ -432,8 +409,7 @@ class SyncService {
           conflictAlgorithm: ConflictAlgorithm.replace,
         );
       }
-    } catch (e) {
-      debugPrint('Error al descargar progreso de rutas: $e');
+    } catch (_) {
     }
   }
 
@@ -472,8 +448,7 @@ class SyncService {
           whereArgs: [id],
         );
       }
-    } catch (e) {
-      debugPrint('Error al sincronizar recompensas canjeadas: $e');
+    } catch (_) {
     }
   }
 }

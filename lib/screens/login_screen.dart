@@ -66,9 +66,7 @@ class _LoginScreenState extends State<LoginScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.message)),
       );
-    } catch (e, s) {
-      debugPrint('Login error: $e');
-      debugPrintStack(stackTrace: s);
+    } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Error inesperado al iniciar sesión')),
@@ -144,9 +142,7 @@ class _LoginScreenState extends State<LoginScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.message)),
       );
-    } catch (e, s) {
-      debugPrint('Register error: $e');
-      debugPrintStack(stackTrace: s);
+    } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Error inesperado al registrar el usuario')),

@@ -8,12 +8,20 @@ enum UserRole {
 
   /// Convierte un string a UserRole
   static UserRole fromString(String value) {
-    switch (value) {
+    final normalized = value.trim().toLowerCase();
+
+    switch (normalized) {
       case 'user':
         return UserRole.user;
+      case 'gerente':
+      case 'manager':
+      case 'thermal_manager':
+      case 'thermal-manager':
       case 'thermalManager':
+      case 'thermalmanager':
         return UserRole.thermalManager;
       case 'admin':
+      case 'administrator':
         return UserRole.admin;
       default:
         return UserRole.user;

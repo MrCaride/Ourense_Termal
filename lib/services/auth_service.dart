@@ -30,14 +30,39 @@ class AuthService {
     return sha256.convert(utf8.encode(password)).toString();
   }
 
+  String? _extractRoleValue(Map<String, dynamic> data) {
+    final dynamic raw =
+        data['role'] ?? data['rol'] ?? data['userRole'] ?? data['tipo'];
+    if (raw == null) return null;
+    return raw.toString();
+  }
+
+  String? _extractThermalPointId(Map<String, dynamic> data) {
+    final dynamic raw =
+        data['thermalPointId'] ?? data['thermal_point_id'] ?? data['pointId'];
+    if (raw == null) return null;
+    final value = raw.toString().trim();
+    return value.isEmpty ? null : value;
+  }
+
+  UserRole _resolveRoleFromProfile(Map<String, dynamic> data) {
+    final parsedRole = UserRole.fromString(_extractRoleValue(data) ?? 'user');
+    final thermalPointId = _extractThermalPointId(data);
+    if (parsedRole == UserRole.user &&
+        thermalPointId != null &&
+        thermalPointId.trim().isNotEmpty) {
+      return UserRole.thermalManager;
+    }
+    return parsedRole;
+  }
+
   // Guardar sesión del usuario
   Future<void> _saveSession(String userId, String email) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_userIdKey, userId);
       await prefs.setString(_userEmailKey, email);
-    } catch (e) {
-      debugPrint('Error al guardar sesión: $e');
+    } catch (_) {
       // No lanzar error, solo registrar
     }
   }
@@ -49,8 +74,7 @@ class AuthService {
       await prefs.remove(_userIdKey);
       await prefs.remove(_userEmailKey);
       await _firebaseAuth.signOut();
-    } catch (e) {
-      debugPrint('Error al cerrar sesión: $e');
+    } catch (_) {
       // No lanzar error, solo registrar
     }
   }
@@ -64,11 +88,23 @@ class AuthService {
       final userId = prefs.getString(_userIdKey);
       final email = prefs.getString(_userEmailKey);
 
-      final effectiveUserId = firebaseUser?.uid ?? userId;
-      final effectiveEmail = firebaseUser?.email ?? email;
+      // En web solo se confía en Firebase Auth para evitar UID local obsoleto.
+      if (kIsWeb && firebaseUser == null) {
+        await prefs.remove(_userIdKey);
+        await prefs.remove(_userEmailKey);
+        return null;
+      }
+
+      final effectiveUserId = firebaseUser?.uid ?? (kIsWeb ? null : userId);
+      final effectiveEmail = firebaseUser?.email ?? (kIsWeb ? null : email);
 
       if (effectiveUserId == null || effectiveEmail == null) {
         return null;
+      }
+
+      if (firebaseUser != null &&
+          (userId != firebaseUser.uid || email != firebaseUser.email)) {
+        await _saveSession(firebaseUser.uid, firebaseUser.email ?? effectiveEmail);
       }
 
       if (kIsWeb) {
@@ -87,61 +123,75 @@ class AuthService {
           points: data['points'] ?? 0,
           level: data['level'] ?? 1,
           joinedDate: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-          role: UserRole.fromString(data['role'] as String? ?? 'user'),
-          thermalPointId: data['thermalPointId'] as String?,
+          role: _resolveRoleFromProfile(data),
+          thermalPointId: _extractThermalPointId(data),
         );
       } else {
         final db = await _databaseService.database;
-        final result = await db.query(
-          'users',
-          where: 'id = ?',
-          whereArgs: [effectiveUserId],
-          limit: 1,
-        );
+        // Si existe sesión Firebase, prioriza perfil remoto para evitar rol local obsoleto.
+        if (firebaseUser != null) {
+          try {
+            final remoteDoc = await _firestore
+                .collection('users')
+                .doc(effectiveUserId)
+                .get();
 
-        if (result.isEmpty && firebaseUser != null) {
-          final remoteDoc = await _firestore
-              .collection('users')
-              .doc(effectiveUserId)
-              .get();
+            if (remoteDoc.exists) {
+              final remote = remoteDoc.data()!;
+              final remoteUser = User(
+                id: effectiveUserId,
+                name: remote['name'] ?? '',
+                email: remote['email'] ?? effectiveEmail,
+                passwordHash: remote['passwordHash'] ?? '',
+                points: remote['points'] ?? 0,
+                level: remote['level'] ?? 1,
+                role: _resolveRoleFromProfile(remote),
+                thermalPointId: _extractThermalPointId(remote),
+                joinedDate:
+                    (remote['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+              );
 
-          if (remoteDoc.exists) {
-            final remote = remoteDoc.data()!;
-            await db.insert('users', {
-              'id': effectiveUserId,
-              'name': remote['name'] ?? '',
-              'email': remote['email'] ?? effectiveEmail,
-              'passwordHash': remote['passwordHash'] ?? '',
-              'points': remote['points'] ?? 0,
-              'level': remote['level'] ?? 1,
-              'profileImageUrl': remote['profileImageUrl'],
-              'createdAt': (remote['createdAt'] as Timestamp?)
-                      ?.millisecondsSinceEpoch ??
-                  DateTime.now().millisecondsSinceEpoch,
-              'updatedAt': (remote['updatedAt'] as Timestamp?)
-                      ?.millisecondsSinceEpoch ??
-                  DateTime.now().millisecondsSinceEpoch,
-              'syncedWithFirebase': 1,
-            }, conflictAlgorithm: ConflictAlgorithm.replace);
+              await db.insert('users', {
+                'id': remoteUser.id,
+                'name': remoteUser.name,
+                'email': remoteUser.email,
+                'passwordHash': remoteUser.passwordHash,
+                'points': remoteUser.points,
+                'level': remoteUser.level,
+                'role': remoteUser.role.getValue(),
+                'thermalPointId': remoteUser.thermalPointId,
+                'profileImageUrl': remote['profileImageUrl'],
+                'createdAt': (remote['createdAt'] as Timestamp?)
+                        ?.millisecondsSinceEpoch ??
+                    DateTime.now().millisecondsSinceEpoch,
+                'updatedAt': (remote['updatedAt'] as Timestamp?)
+                        ?.millisecondsSinceEpoch ??
+                    DateTime.now().millisecondsSinceEpoch,
+                'syncedWithFirebase': 1,
+              }, conflictAlgorithm: ConflictAlgorithm.replace);
+
+              return remoteUser;
+            }
+          } catch (_) {
+            // Si falla remoto, se intenta recuperar sesión local.
           }
         }
 
-        final refreshed = await db.query(
+        final local = await db.query(
           'users',
           where: 'id = ?',
           whereArgs: [effectiveUserId],
           limit: 1,
         );
 
-        if (refreshed.isEmpty) {
+        if (local.isEmpty) {
           await logout();
           return null;
         }
 
-        return User.fromMap(Map<String, dynamic>.from(refreshed.first));
+        return User.fromMap(Map<String, dynamic>.from(local.first));
       }
-    } catch (e) {
-      debugPrint('Error al recuperar sesión: $e');
+    } catch (_) {
       // En caso de error con SharedPreferences (especialmente en web), retornar null
       return null;
     }
@@ -243,8 +293,7 @@ class AuthService {
       }
     } on FirebaseException {
       throw AuthException('Error inesperado al crear la cuenta.');
-    } catch (e) {
-      debugPrint('Error inesperado en register: $e');
+    } catch (_) {
       throw AuthException('Error inesperado al crear la cuenta.');
     }
   }
@@ -282,15 +331,62 @@ class AuthService {
         }
 
         final localUser = User.fromMap(Map<String, dynamic>.from(userMap));
+
+        // Si hay conexión, prioriza el perfil remoto para evitar roles obsoletos.
+        try {
+          final credential = await _firebaseAuth.signInWithEmailAndPassword(
+            email: normalizedEmail,
+            password: password,
+          );
+
+          final uid = credential.user?.uid;
+          if (uid != null) {
+            final profileDoc = await _firestore.collection('users').doc(uid).get();
+            if (profileDoc.exists) {
+              final data = profileDoc.data()!;
+              final remoteUser = User(
+                id: uid,
+                name: data['name'] ?? '',
+                email: data['email'] ?? normalizedEmail,
+                passwordHash: data['passwordHash'] ?? passwordHash,
+                points: data['points'] ?? 0,
+                level: data['level'] ?? 1,
+                role: _resolveRoleFromProfile(data),
+                thermalPointId: _extractThermalPointId(data),
+                joinedDate:
+                    (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+              );
+
+              await db.insert(
+                'users',
+                {
+                  'id': remoteUser.id,
+                  'name': remoteUser.name,
+                  'email': remoteUser.email,
+                  'passwordHash': remoteUser.passwordHash,
+                  'points': remoteUser.points,
+                  'level': remoteUser.level,
+                  'role': remoteUser.role.getValue(),
+                  'thermalPointId': remoteUser.thermalPointId,
+                  'profileImageUrl': data['profileImageUrl'],
+                  'createdAt': (data['createdAt'] as Timestamp?)
+                          ?.millisecondsSinceEpoch ??
+                      DateTime.now().millisecondsSinceEpoch,
+                  'updatedAt': DateTime.now().millisecondsSinceEpoch,
+                  'syncedWithFirebase': 1,
+                },
+                conflictAlgorithm: ConflictAlgorithm.replace,
+              );
+
+              await _saveSession(remoteUser.id, remoteUser.email);
+              return remoteUser;
+            }
+          }
+        } catch (_) {
+          // Si no hay red o falla Firebase, mantiene login offline local.
+        }
+
         await _saveSession(localUser.id, localUser.email);
-
-        // No bloqueante: intenta refrescar contra Firebase si hay red.
-        _refreshLocalUserFromFirebase(
-          email: normalizedEmail,
-          password: password,
-          localPasswordHash: passwordHash,
-        );
-
         return localUser;
       }
     }
@@ -319,6 +415,8 @@ class AuthService {
         passwordHash: data['passwordHash'] ?? passwordHash,
         points: data['points'] ?? 0,
         level: data['level'] ?? 1,
+        role: _resolveRoleFromProfile(data),
+        thermalPointId: _extractThermalPointId(data),
         joinedDate: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       );
 
@@ -333,6 +431,8 @@ class AuthService {
             'passwordHash': user.passwordHash,
             'points': user.points,
             'level': user.level,
+            'role': user.role.getValue(),
+            'thermalPointId': user.thermalPointId,
             'profileImageUrl': data['profileImageUrl'],
             'createdAt': (data['createdAt'] as Timestamp?)?.millisecondsSinceEpoch ??
                 DateTime.now().millisecondsSinceEpoch,
@@ -359,8 +459,7 @@ class AuthService {
         default:
           throw AuthException('Error al iniciar sesión. Inténtalo de nuevo.');
       }
-    } catch (e) {
-      debugPrint('Error inesperado en login: $e');
+    } catch (_) {
       throw AuthException('Error al iniciar sesión. Inténtalo de nuevo.');
     }
   }
@@ -393,6 +492,8 @@ class AuthService {
           'passwordHash': data['passwordHash'] ?? localPasswordHash,
           'points': data['points'] ?? 0,
           'level': data['level'] ?? 1,
+          'role': data['role'] ?? UserRole.user.getValue(),
+          'thermalPointId': data['thermalPointId'],
           'profileImageUrl': data['profileImageUrl'],
           'createdAt': (data['createdAt'] as Timestamp?)?.millisecondsSinceEpoch ??
               DateTime.now().millisecondsSinceEpoch,

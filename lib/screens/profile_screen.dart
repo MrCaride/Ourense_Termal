@@ -3,6 +3,8 @@ import '../models/user_model.dart';
 import '../models/thermal_point_model.dart';
 import '../data/badges_data.dart';
 import '../services/auth_service.dart';
+import '../components/index.dart';
+import '../theme/index.dart';
 import '../utils/app_theme.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -58,9 +60,10 @@ class ProfileScreen extends StatelessWidget {
     final unlockedIds = user.badges.map((b) => b.id).toSet();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF6FAFD),
+      backgroundColor: AppColors.surfaceAlt,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
         elevation: 0,
         title: const Text('Perfil'),
         actions: [
@@ -74,25 +77,18 @@ class ProfileScreen extends StatelessWidget {
       body: CustomScrollView(
         slivers: [
           SliverToBoxAdapter(
-            child: Container(
-              margin: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-              decoration: BoxDecoration(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.sm),
+              child: CustomCard(
                 gradient: const LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [AppTheme.brandTeal, Color(0xFF0284C7), Color(0xFF0EA5A4)],
+                  colors: [AppColors.thermalCool, AppColors.accentBlue, AppColors.thermalWarm],
                 ),
-                borderRadius: BorderRadius.circular(28),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.14),
-                    blurRadius: 24,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-              ),
-              padding: const EdgeInsets.all(20),
-              child: Column(
+                borderRadius: AppRadius.xl,
+                shadows: AppShadows.elevation3,
+                padding: const EdgeInsets.all(AppSpacing.xl),
+                child: Column(
                 children: [
                   Row(
                     children: [
@@ -102,30 +98,16 @@ class ProfileScreen extends StatelessWidget {
                           shape: BoxShape.circle,
                           color: Colors.white.withValues(alpha: 0.25),
                         ),
-                        child: CircleAvatar(
-                          radius: 32,
-                          backgroundColor: Colors.white,
-                          child: Icon(Icons.person, size: 34, color: Colors.teal[600]),
-                        ),
+                        child: CircleAvatar(radius: 32, backgroundColor: Colors.white, child: Icon(Icons.person, size: 34, color: AppColors.thermalCool)),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              user.name,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
+                            Text(user.name, style: AppTypography.titleLarge.copyWith(color: Colors.white)),
                             const SizedBox(height: 2),
-                            Text(
-                              user.email,
-                              style: const TextStyle(color: Colors.white70),
-                            ),
+                            Text(user.email, style: AppTypography.bodySmall.copyWith(color: Colors.white.withValues(alpha: 0.82))),
                           ],
                         ),
                       ),
@@ -135,51 +117,32 @@ class ProfileScreen extends StatelessWidget {
                           color: Colors.white.withValues(alpha: 0.18),
                           borderRadius: BorderRadius.circular(999),
                         ),
-                        child: Text(
-                          'Nivel ${user.level}',
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
-                        ),
+                        child: Text('Nivel ${user.level}', style: AppTypography.labelLarge.copyWith(color: Colors.white)),
                       ),
                     ],
                   ),
                   const SizedBox(height: 14),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(999),
-                    child: LinearProgressIndicator(
-                      value: user.getLevelProgress(),
-                      minHeight: 8,
-                      backgroundColor: Colors.white.withValues(alpha: 0.2),
-                      valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  ),
+                  CustomProgressBar(progress: user.getLevelProgress(), foregroundColor: Colors.white, backgroundColor: Colors.white.withValues(alpha: 0.2), height: 8),
                   const SizedBox(height: 8),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        user.getLevelTitle(),
-                        style: const TextStyle(color: Colors.white70),
-                      ),
-                      Text(
-                        '${user.getPointsToNextLevel()} pts para subir',
-                        style: const TextStyle(color: Colors.white70),
-                      ),
+                      Text(user.getLevelTitle(), style: AppTypography.bodySmall.copyWith(color: Colors.white.withValues(alpha: 0.82))),
+                      Text('${user.getPointsToNextLevel()} pts para subir', style: AppTypography.bodySmall.copyWith(color: Colors.white.withValues(alpha: 0.82))),
                     ],
                   ),
                 ],
+              ),
               ),
             ),
           ),
           // Nivel y progreso
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Card(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: CustomCard(
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(AppSpacing.lg),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -188,45 +151,21 @@ class ProfileScreen extends StatelessWidget {
                         children: [
                           Row(
                             children: [
-                              const Icon(Icons.star, color: Colors.amber),
+                              const Icon(Icons.star_rounded, color: AppColors.thermalGold),
                               const SizedBox(width: 8),
-                              Text(
-                                'Nivel ${user.level}',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
+                              Text('Nivel ${user.level}', style: AppTypography.titleSmall),
                             ],
                           ),
                           Text(
                             user.getLevelTitle(),
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                            ),
+                            style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary),
                           ),
                         ],
                       ),
                       const SizedBox(height: 12),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: LinearProgressIndicator(
-                          value: user.getLevelProgress(),
-                          minHeight: 8,
-                          backgroundColor: Colors.grey[300],
-                          valueColor: AlwaysStoppedAnimation(
-                            Colors.amber[600],
-                          ),
-                        ),
-                      ),
+                      CustomProgressBar(progress: user.getLevelProgress(), foregroundColor: AppColors.thermalGold, backgroundColor: AppColors.surfaceAlt, height: 8),
                       const SizedBox(height: 8),
-                      Text(
-                        '${user.getPointsToNextLevel()} puntos para nivel ${user.level + 1}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
-                      ),
+                      Text('${user.getPointsToNextLevel()} puntos para nivel ${user.level + 1}', style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary)),
                     ],
                   ),
                 ),
@@ -244,9 +183,9 @@ class ProfileScreen extends StatelessWidget {
                 mainAxisSpacing: 12,
                 crossAxisSpacing: 12,
                 children: [
-                  _buildStatCard(Icons.stars_rounded, user.points.toString(), 'Puntos'),
-                  _buildStatCard(Icons.location_on_rounded, checkIns.length.toString(), 'Visitas'),
-                  _buildStatCard(Icons.verified_rounded, user.badges.length.toString(), 'Insignias'),
+                  StatTile(icon: Icons.stars_rounded, value: user.points.toString(), label: 'Puntos', color: AppColors.thermalWarm),
+                  StatTile(icon: Icons.location_on_rounded, value: checkIns.length.toString(), label: 'Visitas', color: AppColors.thermalCool),
+                  StatTile(icon: Icons.verified_rounded, value: user.badges.length.toString(), label: 'Insignias', color: AppColors.accentPurple),
                 ],
               ),
             ),
@@ -279,14 +218,9 @@ class ProfileScreen extends StatelessWidget {
                   final badge = user.badges[index];
                   return Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: Card(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: const BorderSide(color: Colors.amber),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Row(
+                    child: CustomCard(
+                      border: Border.all(color: AppColors.thermalGold),
+                      child: Row(
                           children: [
                             Text(badge.icon, style: const TextStyle(fontSize: 32)),
                             const SizedBox(width: 12),
@@ -294,25 +228,13 @@ class ProfileScreen extends StatelessWidget {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    badge.name,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  Text(
-                                    badge.description,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
+                                  Text(badge.name, style: AppTypography.titleSmall),
+                                  Text(badge.description, style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary)),
                                 ],
                               ),
                             ),
                           ],
                         ),
-                      ),
                     ),
                   );
                 },
@@ -412,8 +334,8 @@ class ProfileScreen extends StatelessWidget {
                 label: const Text('Cerrar sesión'),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  side: BorderSide(color: Colors.red[400]!),
-                  foregroundColor: Colors.red[600],
+                  side: const BorderSide(color: AppColors.accentRed),
+                  foregroundColor: AppColors.accentRed,
                 ),
               ),
             ),

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import '../components/index.dart';
 import '../services/auth_service.dart';
 import '../widgets/role_based_navigator.dart';
 import '../models/user_role.dart';
-import '../utils/app_theme.dart';
+import '../theme/index.dart';
 
 enum AuthMode { login, register }
 
@@ -22,6 +23,20 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   AuthMode _authMode = AuthMode.login;
   UserRole _selectedRole = UserRole.user;
+  bool _showForm = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Entrada progresiva del formulario para una primera impresión más cuidada.
+    Future<void>.delayed(const Duration(milliseconds: 120), () {
+      if (mounted) {
+        setState(() {
+          _showForm = true;
+        });
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -158,250 +173,267 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final title = _authMode == AuthMode.login ? 'Bienvenido de nuevo' : 'Crea tu cuenta';
+    final subtitle = _authMode == AuthMode.login
+        ? 'Explora Ourense, suma puntos y descubre nuevas rutas termales.'
+        : 'Empieza tu viaje termal con recompensas y logros desde el primer check-in.';
+
     return Scaffold(
-      body: Stack(
-        children: [
-          Container(decoration: const BoxDecoration(gradient: AppTheme.heroGradient)),
-          Positioned(
-            top: -80,
-            right: -40,
-            child: Container(
-              width: 220,
-              height: 220,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.13),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFFF0F9FF),
+              Color(0xFFE6F8F5),
+              Colors.white,
+            ],
+          ),
+        ),
+        child: Stack(
+          children: [
+            Positioned(
+              top: -90,
+              left: -30,
+              child: _SoftOrb(
+                size: 220,
+                colors: const [Color(0x3314B8A6), Color(0x19F59E0B)],
               ),
             ),
-          ),
-          Positioned(
-            bottom: -100,
-            left: -60,
-            child: Container(
-              width: 260,
-              height: 260,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.08),
+            Positioned(
+              top: 120,
+              right: -70,
+              child: _SoftOrb(
+                size: 260,
+                colors: const [Color(0x3314B8A6), Color(0x260EA5E9)],
               ),
             ),
-          ),
-          SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
-                child: Container(
-                  constraints: const BoxConstraints(maxWidth: 480),
-                  padding: const EdgeInsets.all(28),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.95),
-                    borderRadius: BorderRadius.circular(28),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.8)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.16),
-                        blurRadius: 28,
-                        offset: const Offset(0, 12),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: 56,
-                            height: 56,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(16),
-                              gradient: const LinearGradient(
-                                colors: [AppTheme.brandTeal, AppTheme.brandCyan],
+            Positioned(
+              bottom: -100,
+              left: 20,
+              child: _SoftOrb(
+                size: 260,
+                colors: const [Color(0x22EA6947), Color(0x15A855F7)],
+              ),
+            ),
+            SafeArea(
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.xl),
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween<double>(begin: 0.96, end: 1),
+                    duration: const Duration(milliseconds: 450),
+                    curve: Curves.easeOutCubic,
+                    builder: (context, scale, child) {
+                      return Transform.scale(scale: scale, child: child);
+                    },
+                    child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 420),
+                      curve: Curves.easeOut,
+                      opacity: _showForm ? 1 : 0,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 520),
+                        child: CustomCard(
+                          borderRadius: AppRadius.xl,
+                          backgroundColor: Colors.white.withValues(alpha: 0.92),
+                          padding: const EdgeInsets.all(AppSpacing.xl),
+                          shadows: AppShadows.elevation3,
+                          border: Border.all(color: AppColors.borderLighter),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Row(
+                                children: [
+                                  Hero(
+                                    tag: 'ourense_app_mark',
+                                    child: Container(
+                                      width: 58,
+                                      height: 58,
+                                      decoration: BoxDecoration(
+                                        gradient: const LinearGradient(
+                                          colors: [AppColors.thermalCool, AppColors.accentBlue],
+                                        ),
+                                        borderRadius: BorderRadius.circular(18),
+                                      ),
+                                      child: const Icon(Icons.water_drop_rounded, color: Colors.white, size: 30),
+                                    ),
+                                  ),
+                                  const SizedBox(width: AppSpacing.md),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text('Ourense Termal', style: AppTypography.titleLarge),
+                                        const SizedBox(height: AppSpacing.xs),
+                                        Text('Turismo termal gamificado', style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary)),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                            child: const Icon(Icons.water_drop, color: Colors.white, size: 28),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Ourense Termal',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                              fontWeight: FontWeight.w800,
-                              color: AppTheme.brandSlate,
-                            ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        _authMode == AuthMode.login
-                            ? 'Vuelve a sumergirte en la experiencia termal'
-                            : 'Crea tu cuenta y empieza tu ruta de bienestar',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Colors.black.withValues(alpha: 0.62),
-                            ),
-                      ),
-                      const SizedBox(height: 24),
-                      SegmentedButton<AuthMode>(
-                        style: ButtonStyle(
-                          backgroundColor: WidgetStatePropertyAll(
-                            AppTheme.brandTeal.withValues(alpha: 0.08),
-                          ),
-                        ),
-                        segments: const [
-                          ButtonSegment(
-                            value: AuthMode.login,
-                            label: Text('Entrar'),
-                            icon: Icon(Icons.login),
-                          ),
-                          ButtonSegment(
-                            value: AuthMode.register,
-                            label: Text('Crear cuenta'),
-                            icon: Icon(Icons.person_add_alt_1),
-                          ),
-                        ],
-                        selected: {_authMode},
-                        onSelectionChanged: (value) {
-                          setState(() {
-                            _authMode = value.first;
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 18),
-                      if (_authMode == AuthMode.register) ...[
-                        TextField(
-                          controller: _nameController,
-                          textInputAction: TextInputAction.next,
-                          decoration: const InputDecoration(
-                            labelText: 'Nombre completo',
-                            prefixIcon: Icon(Icons.person_outline),
-                          ),
-                        ),
-                        Text(
-                          'Tipo de cuenta',
-                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        SegmentedButton<UserRole>(
-                          style: ButtonStyle(
-                            backgroundColor: WidgetStatePropertyAll(
-                              AppTheme.brandTeal.withValues(alpha: 0.08),
-                            ),
-                          ),
-                          segments: const [
-                            ButtonSegment(
-                              value: UserRole.user,
-                              label: Text('Usuario'),
-                              icon: Icon(Icons.person),
-                            ),
-                            ButtonSegment(
-                              value: UserRole.thermalManager,
-                              label: Text('Gerente'),
-                              icon: Icon(Icons.manage_accounts),
-                            ),
-                            ButtonSegment(
-                              value: UserRole.admin,
-                              label: Text('Admin'),
-                              icon: Icon(Icons.admin_panel_settings),
-                            ),
-                          ],
-                          selected: {_selectedRole},
-                          onSelectionChanged: (value) {
-                            setState(() {
-                              _selectedRole = value.first;
-                            });
-                          },
-                        ),
-                        const SizedBox(height: 14),
-                        Text(
-                          'Modo temporal: puedes crear cuentas admin desde este formulario.',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Colors.orange[800],
-                                fontWeight: FontWeight.w600,
-                              ),
-                        ),
-                        const SizedBox(height: 14),
-                      ],
-                      TextField(
-                        controller: _emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        textInputAction: TextInputAction.next,
-                        decoration: const InputDecoration(
-                          labelText: 'Correo electrónico',
-                          prefixIcon: Icon(Icons.alternate_email_rounded),
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      TextField(
-                        controller: _passwordController,
-                        obscureText: true,
-                        textInputAction: _authMode == AuthMode.register
-                            ? TextInputAction.next
-                            : TextInputAction.done,
-                        decoration: const InputDecoration(
-                          labelText: 'Contraseña',
-                          prefixIcon: Icon(Icons.lock_outline_rounded),
-                        ),
-                      ),
-                      if (_authMode == AuthMode.register) ...[
-                        const SizedBox(height: 14),
-                        TextField(
-                          controller: _confirmPasswordController,
-                          obscureText: true,
-                          textInputAction: TextInputAction.done,
-                          decoration: const InputDecoration(
-                            labelText: 'Confirmar contraseña',
-                            prefixIcon: Icon(Icons.verified_user_outlined),
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 22),
-                      FilledButton(
-                        onPressed: _isLoading
-                            ? null
-                            : (_authMode == AuthMode.login
-                                ? _handleLogin
-                                : _handleRegister),
-                        style: FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                        ),
-                        child: _isLoading
-                            ? const SizedBox(
-                                height: 22,
-                                width: 22,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
+                              const SizedBox(height: AppSpacing.lg),
+                              Text(title, style: AppTypography.displaySmall),
+                              const SizedBox(height: AppSpacing.sm),
+                              Text(subtitle, style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondary)),
+                              const SizedBox(height: AppSpacing.xl),
+                              AnimatedContainer(
+                                duration: const Duration(milliseconds: 260),
+                                curve: Curves.easeOut,
+                                padding: const EdgeInsets.all(AppSpacing.xs),
+                                decoration: BoxDecoration(
+                                  color: AppColors.surfaceAlt,
+                                  borderRadius: BorderRadius.circular(AppRadius.lg),
                                 ),
-                              )
-                            : Text(
-                                _authMode == AuthMode.login
-                                    ? 'Acceder'
-                                    : 'Crear cuenta',
-                                style: const TextStyle(fontWeight: FontWeight.w700),
+                                child: SegmentedButton<AuthMode>(
+                                  segments: const [
+                                    ButtonSegment(value: AuthMode.login, icon: Icon(Icons.login_rounded), label: Text('Entrar')),
+                                    ButtonSegment(value: AuthMode.register, icon: Icon(Icons.person_add_alt_1_rounded), label: Text('Crear cuenta')),
+                                  ],
+                                  selected: {_authMode},
+                                  onSelectionChanged: (value) {
+                                    setState(() {
+                                      _authMode = value.first;
+                                    });
+                                  },
+                                ),
                               ),
+                              const SizedBox(height: AppSpacing.lg),
+                              AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 250),
+                                switchInCurve: Curves.easeOutCubic,
+                                switchOutCurve: Curves.easeInCubic,
+                                child: Column(
+                                  key: ValueKey(_authMode),
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    if (_authMode == AuthMode.register) ...[
+                                      TextField(
+                                        controller: _nameController,
+                                        textInputAction: TextInputAction.next,
+                                        decoration: const InputDecoration(
+                                          labelText: 'Nombre completo',
+                                          prefixIcon: Icon(Icons.person_outline_rounded),
+                                        ),
+                                      ),
+                                      const SizedBox(height: AppSpacing.md),
+                                      Text('Tipo de cuenta', style: AppTypography.labelLarge),
+                                      const SizedBox(height: AppSpacing.sm),
+                                      SegmentedButton<UserRole>(
+                                        segments: const [
+                                          ButtonSegment(value: UserRole.user, icon: Icon(Icons.person_rounded), label: Text('Usuario')),
+                                          ButtonSegment(value: UserRole.thermalManager, icon: Icon(Icons.store_mall_directory_rounded), label: Text('Gerente')),
+                                          ButtonSegment(value: UserRole.admin, icon: Icon(Icons.admin_panel_settings_rounded), label: Text('Admin')),
+                                        ],
+                                        selected: {_selectedRole},
+                                        onSelectionChanged: (value) {
+                                          setState(() {
+                                            _selectedRole = value.first;
+                                          });
+                                        },
+                                      ),
+                                      const SizedBox(height: AppSpacing.sm),
+                                      InfoTile(
+                                        icon: Icons.info_outline_rounded,
+                                        title: 'Modo temporal activo',
+                                        subtitle: 'Puedes registrar cuentas de admin desde aquí.',
+                                        iconColor: AppColors.thermalGoldDark,
+                                      ),
+                                      const SizedBox(height: AppSpacing.md),
+                                    ],
+                                    TextField(
+                                      controller: _emailController,
+                                      keyboardType: TextInputType.emailAddress,
+                                      textInputAction: TextInputAction.next,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Correo electrónico',
+                                        prefixIcon: Icon(Icons.alternate_email_rounded),
+                                      ),
+                                    ),
+                                    const SizedBox(height: AppSpacing.md),
+                                    TextField(
+                                      controller: _passwordController,
+                                      obscureText: true,
+                                      textInputAction: _authMode == AuthMode.register ? TextInputAction.next : TextInputAction.done,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Contraseña',
+                                        prefixIcon: Icon(Icons.lock_outline_rounded),
+                                      ),
+                                    ),
+                                    if (_authMode == AuthMode.register) ...[
+                                      const SizedBox(height: AppSpacing.md),
+                                      TextField(
+                                        controller: _confirmPasswordController,
+                                        obscureText: true,
+                                        textInputAction: TextInputAction.done,
+                                        decoration: const InputDecoration(
+                                          labelText: 'Confirmar contraseña',
+                                          prefixIcon: Icon(Icons.verified_user_outlined),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: AppSpacing.xl),
+                              AnimatedContainer(
+                                duration: const Duration(milliseconds: 220),
+                                curve: Curves.easeOut,
+                                transform: Matrix4.diagonal3Values(
+                                  _isLoading ? 0.995 : 1.0,
+                                  _isLoading ? 0.995 : 1.0,
+                                  1.0,
+                                ),
+                                child: CustomButton(
+                                  label: _authMode == AuthMode.login ? 'Acceder' : 'Crear cuenta',
+                                  icon: _authMode == AuthMode.login ? Icons.login_rounded : Icons.person_add_alt_1_rounded,
+                                  isLoading: _isLoading,
+                                  onPressed: _isLoading ? () {} : (_authMode == AuthMode.login ? _handleLogin : _handleRegister),
+                                ),
+                              ),
+                              const SizedBox(height: AppSpacing.md),
+                              Text(
+                                'Usamos tu ubicación para mostrar puntos termales cercanos y mejorar tus rutas.',
+                                textAlign: TextAlign.center,
+                                style: AppTypography.bodySmall.copyWith(
+                                  color: AppColors.textSecondary,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                      const SizedBox(height: 14),
-                      Text(
-                        'Usamos tu ubicación para ordenar puntos termales por cercanía y mejorar la experiencia.',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Colors.black.withValues(alpha: 0.56),
-                              height: 1.45,
-                            ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SoftOrb extends StatelessWidget {
+  final double size;
+  final List<Color> colors;
+
+  const _SoftOrb({required this.size, required this.colors});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: colors,
+        ),
       ),
     );
   }

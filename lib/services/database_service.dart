@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart' as sqflite;
 import 'package:path/path.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 class DatabaseService {
   static final DatabaseService _instance = DatabaseService._internal();

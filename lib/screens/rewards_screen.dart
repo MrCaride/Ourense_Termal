@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
-import '../models/user_model.dart';
+
+import '../components/index.dart';
 import '../models/reward_model.dart';
+import '../models/user_model.dart';
 import '../services/reward_service.dart';
 import '../services/user_data_service.dart';
+import '../theme/index.dart';
 import 'reward_detail_screen.dart';
-import '../utils/app_theme.dart';
 
 class RewardsScreen extends StatefulWidget {
   final User user;
@@ -18,7 +20,7 @@ class RewardsScreen extends StatefulWidget {
 class _RewardsScreenState extends State<RewardsScreen> {
   final RewardService _rewardService = RewardService();
   final UserDataService _userDataService = UserDataService();
-  
+
   late User _user;
   List<Reward> _allRewards = [];
   List<Reward> _displayedRewards = [];
@@ -36,12 +38,12 @@ class _RewardsScreenState extends State<RewardsScreen> {
   };
 
   final Map<String, IconData> _filterIcons = {
-    'all': Icons.grid_view,
-    'spa': Icons.hot_tub,
-    'pastry': Icons.bakery_dining,
-    'restaurant': Icons.restaurant,
-    'shop': Icons.shopping_bag,
-    'experience': Icons.explore,
+    'all': Icons.grid_view_rounded,
+    'spa': Icons.hot_tub_rounded,
+    'pastry': Icons.bakery_dining_rounded,
+    'restaurant': Icons.restaurant_rounded,
+    'shop': Icons.shopping_bag_rounded,
+    'experience': Icons.explore_rounded,
   };
 
   @override
@@ -55,16 +57,10 @@ class _RewardsScreenState extends State<RewardsScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // Cargar usuario actualizado
       _user = await _userDataService.getUserWithStats(_user.id);
-      
-      // Cargar todas las recompensas
       _allRewards = RewardService.getAvailableRewards();
       _displayedRewards = _allRewards;
-      
-      // Cargar recompensas canjeadas
       _redeemedRewards = await _rewardService.getUserRedeemedRewards(_user.id);
-      
       setState(() => _isLoading = false);
     } catch (_) {
       setState(() => _isLoading = false);
@@ -86,8 +82,8 @@ class _RewardsScreenState extends State<RewardsScreen> {
     return _redeemedRewards.any((r) => r.rewardId == reward.id && !r.used);
   }
 
-  void _navigateToRewardDetail(Reward reward) async {
-    final result = await Navigator.push(
+  Future<void> _navigateToRewardDetail(Reward reward) async {
+    final result = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
         builder: (context) => RewardDetailScreen(
@@ -100,29 +96,49 @@ class _RewardsScreenState extends State<RewardsScreen> {
     );
 
     if (result == true) {
-      // Recargar datos después de canjear
-      _loadData();
+      await _loadData();
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF6FAFD),
-      appBar: AppBar(title: const Text('Recompensas')),
+      backgroundColor: AppColors.surfaceAlt,
+      appBar: AppBar(
+        title: const Text('Recompensas'),
+        centerTitle: false,
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        elevation: 0,
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: _loadData,
-              child: Column(
+              child: ListView(
+                padding: EdgeInsets.zero,
                 children: [
                   _buildPointsHeader(),
                   _buildFilterChips(),
-                  Expanded(
-                    child: _displayedRewards.isEmpty
-                        ? _buildEmptyState()
-                        : _buildRewardsList(),
-                  ),
+                  if (_displayedRewards.isEmpty)
+                    _buildEmptyState()
+                  else
+                    ..._displayedRewards.asMap().entries.map(
+                      (entry) => Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          AppSpacing.lg,
+                          entry.key == 0 ? AppSpacing.sm : AppSpacing.sm,
+                          AppSpacing.lg,
+                          AppSpacing.sm,
+                        ),
+                        child: AnimatedListItem(
+                          index: entry.key,
+                          delay: Duration(milliseconds: 50 * entry.key),
+                          child: _buildRewardCard(entry.value),
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: AppSpacing.lg),
                 ],
               ),
             ),
@@ -131,83 +147,64 @@ class _RewardsScreenState extends State<RewardsScreen> {
 
   Widget _buildPointsHeader() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [AppTheme.brandTeal, Color(0xFF0EA5A4), Color(0xFF0284C7)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.12),
-              blurRadius: 22,
-              offset: const Offset(0, 10),
-            ),
-          ],
+      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.sm),
+      child: CustomCard(
+        gradient: const LinearGradient(
+          colors: [AppColors.thermalCool, AppColors.accentBlue, AppColors.thermalWarm],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
+        borderRadius: AppRadius.xl,
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        shadows: AppShadows.elevation3,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 Container(
-                  width: 42,
-                  height: 42,
+                  width: 44,
+                  height: 44,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.18),
-                    borderRadius: BorderRadius.circular(12),
+                    color: Colors.white.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(14),
                   ),
-                  child: const Icon(Icons.workspace_premium, color: Colors.white),
+                  child: const Icon(Icons.workspace_premium_rounded, color: Colors.white),
                 ),
-                const SizedBox(width: 12),
-                const Expanded(
-                  child: Text(
-                    'Tu cartera termal',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                    ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Tu cartera termal', style: AppTypography.titleLarge.copyWith(color: Colors.white)),
+                      const SizedBox(height: 2),
+                      Text('Nivel ${_user.level} · ${_user.getLevelTitle()}', style: AppTypography.bodySmall.copyWith(color: Colors.white.withValues(alpha: 0.84))),
+                    ],
                   ),
-                ),
-                Text(
-                  'Nivel ${_user.level}',
-                  style: const TextStyle(color: Colors.white70),
                 ),
               ],
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: AppSpacing.xl),
             Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                const Icon(Icons.stars_rounded, color: Colors.amberAccent, size: 32),
-                const SizedBox(width: 8),
                 Text(
                   '${_user.points}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 36,
-                    fontWeight: FontWeight.w800,
-                    height: 1,
-                  ),
+                  style: AppTypography.displayLarge.copyWith(color: Colors.white, height: 0.95),
                 ),
-                const SizedBox(width: 8),
-                const Text('puntos', style: TextStyle(color: Colors.white70)),
+                const SizedBox(width: AppSpacing.sm),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Text('puntos', style: AppTypography.bodyMedium.copyWith(color: Colors.white.withValues(alpha: 0.88))),
+                ),
               ],
             ),
-            const SizedBox(height: 10),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(999),
-              child: LinearProgressIndicator(
-                value: _user.getLevelProgress(),
-                minHeight: 7,
-                backgroundColor: Colors.white.withValues(alpha: 0.22),
-                valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-              ),
+            const SizedBox(height: AppSpacing.md),
+            CustomProgressBar(
+              progress: _user.getLevelProgress(),
+              foregroundColor: Colors.white,
+              backgroundColor: Colors.white.withValues(alpha: 0.22),
+              height: 8,
             ),
           ],
         ),
@@ -216,8 +213,8 @@ class _RewardsScreenState extends State<RewardsScreen> {
   }
 
   Widget _buildFilterChips() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.md),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
@@ -225,32 +222,22 @@ class _RewardsScreenState extends State<RewardsScreen> {
             final isSelected = _selectedFilter == entry.key;
             return Padding(
               padding: const EdgeInsets.only(right: 8),
-              child: FilterChip(
-                side: BorderSide(
-                  color: isSelected
-                      ? AppTheme.brandTeal
-                      : Colors.black.withValues(alpha: 0.08),
-                ),
+              child: ChoiceChip(
                 selected: isSelected,
                 label: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      _filterIcons[entry.key],
-                      size: 18,
-                      color: isSelected ? Colors.white : Colors.blue[700],
-                    ),
+                    Icon(_filterIcons[entry.key], size: 18),
                     const SizedBox(width: 6),
                     Text(entry.value),
                   ],
                 ),
-                selectedColor: AppTheme.brandTeal,
-                checkmarkColor: Colors.white,
+                selectedColor: AppColors.thermalCool,
                 backgroundColor: Colors.white,
-                labelStyle: TextStyle(
-                  color: isSelected ? Colors.white : AppTheme.brandTeal,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                labelStyle: AppTypography.labelMedium.copyWith(
+                  color: isSelected ? Colors.white : AppColors.textSecondary,
                 ),
+                side: BorderSide(color: isSelected ? AppColors.thermalCool : AppColors.border),
                 onSelected: (_) => _applyFilter(entry.key),
               ),
             );
@@ -260,267 +247,197 @@ class _RewardsScreenState extends State<RewardsScreen> {
     );
   }
 
-  Widget _buildRewardsList() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _displayedRewards.length,
-      itemBuilder: (context, index) {
-        final reward = _displayedRewards[index];
-        return _buildRewardCard(reward);
-      },
-    );
-  }
-
   Widget _buildRewardCard(Reward reward) {
     final canAfford = _canAfford(reward);
     final hasRedeemed = _hasRedeemed(reward);
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: InkWell(
-        onTap: () => _navigateToRewardDetail(reward),
-        borderRadius: BorderRadius.circular(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Imagen
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-              child: Stack(
-                children: [
-                  Image.network(
-                    reward.imageUrl,
+    return CustomCard(
+      borderRadius: AppRadius.xl,
+      padding: EdgeInsets.zero,
+      shadows: AppShadows.elevation2,
+      onTap: () => _navigateToRewardDetail(reward),
+      isClickable: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+            child: Stack(
+              children: [
+                Image.network(
+                  reward.imageUrl,
+                  height: 190,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
                     height: 190,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      height: 180,
-                      color: Colors.grey[300],
-                      child: const Icon(Icons.image, size: 50, color: Colors.grey),
-                    ),
+                    color: AppColors.surfaceAlt,
+                    child: const Icon(Icons.image_rounded, size: 50, color: AppColors.textHint),
                   ),
-                  Positioned.fill(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.bottomCenter,
-                          end: Alignment.topCenter,
-                          colors: [
-                            Colors.black.withValues(alpha: 0.44),
-                            Colors.transparent,
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  if (hasRedeemed)
-                    Positioned(
-                      top: 12,
-                      right: 12,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.green,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.check_circle, color: Colors.white, size: 16),
-                            SizedBox(width: 4),
-                            Text(
-                              'Canjeado',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  // Badge de categoría
-                  Positioned(
-                    top: 12,
-                    left: 12,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.black54,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            _filterIcons[reward.businessType],
-                            color: Colors.white,
-                            size: 14,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            _filterLabels[reward.businessType] ?? '',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
+                ),
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.bottomCenter,
+                        end: Alignment.topCenter,
+                        colors: [
+                          Colors.black.withValues(alpha: 0.52),
+                          Colors.transparent,
                         ],
                       ),
                     ),
                   ),
+                ),
+                Positioned(
+                  top: 12,
+                  left: 12,
+                  child: _BadgePill(
+                    icon: _filterIcons[reward.businessType] ?? Icons.local_offer_rounded,
+                    label: _filterLabels[reward.businessType] ?? '',
+                  ),
+                ),
+                if (hasRedeemed)
                   Positioned(
-                    left: 14,
-                    right: 14,
-                    bottom: 12,
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            reward.title,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 18,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                    top: 12,
+                    right: 12,
+                    child: _BadgePill(
+                      icon: Icons.check_circle_rounded,
+                      label: 'Canjeado',
+                      color: AppColors.accentGreen,
+                    ),
+                  ),
+                Positioned(
+                  left: 16,
+                  right: 16,
+                  bottom: 14,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          reward.title,
+                          style: AppTypography.titleLarge.copyWith(color: Colors.white),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.18),
-                            borderRadius: BorderRadius.circular(999),
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
-                          ),
-                          child: Text(
-                            reward.discount,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 12,
-                            ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
+                        ),
+                        child: Text(
+                          reward.discount,
+                          style: AppTypography.labelSmall.copyWith(color: Colors.white),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.lg),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(reward.businessName, style: AppTypography.labelLarge),
+                const SizedBox(height: AppSpacing.md),
+                Text(
+                  reward.description,
+                  style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary, height: 1.4),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Row(
+                  children: [
+                    const Icon(Icons.location_on_rounded, size: 16, color: AppColors.textSecondary),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        reward.address,
+                        style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.stars_rounded, color: canAfford ? AppColors.thermalGold : AppColors.textDisabled, size: 24),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${reward.pointsCost} puntos',
+                          style: AppTypography.titleSmall.copyWith(
+                            color: canAfford ? AppColors.thermalCool : AppColors.textDisabled,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ],
-              ),
-            ),
-            // Contenido
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    reward.businessName,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[700],
-                      fontWeight: FontWeight.w600,
+                    CustomButton(
+                      label: hasRedeemed ? 'Ver cupón' : 'Canjear',
+                      size: ButtonSize.medium,
+                      backgroundColor: hasRedeemed
+                          ? AppColors.accentGreen
+                          : canAfford
+                              ? AppColors.thermalCool
+                              : AppColors.textDisabled,
+                      onPressed: () => _navigateToRewardDetail(reward),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  // Descripción
-                  Text(
-                    reward.description,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[700],
-                      height: 1.4,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 12),
-                  // Ubicación
-                  Row(
-                    children: [
-                      Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          reward.address,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  // Precio y botón
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.stars,
-                            color: canAfford ? Colors.amber : Colors.grey,
-                            size: 24,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            '${reward.pointsCost} puntos',
-                            style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w800,
-                              color: canAfford ? AppTheme.brandTeal : Colors.grey,
-                            ),
-                          ),
-                        ],
-                      ),
-                      FilledButton(
-                        onPressed: () => _navigateToRewardDetail(reward),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: hasRedeemed
-                              ? Colors.green
-                              : canAfford
-                                  ? AppTheme.brandTeal
-                                  : Colors.grey[400],
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                        ),
-                        child: Text(
-                          hasRedeemed ? 'Ver cupón' : 'Canjear',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                  ],
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      child: EmptyState(
+        icon: Icons.card_giftcard_rounded,
+        title: 'No hay recompensas en esta categoría',
+        description: 'Cambia el filtro o vuelve más tarde para descubrir nuevas opciones.',
+        iconColor: AppColors.thermalCool,
+      ),
+    );
+  }
+}
+
+class _BadgePill extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color? color;
+
+  const _BadgePill({required this.icon, required this.label, this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    final pillColor = color ?? Colors.black54;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: pillColor.withValues(alpha: 0.8),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.card_giftcard, size: 80, color: Colors.grey[400]),
-          const SizedBox(height: 16),
-          Text(
-            'No hay recompensas en esta categoría',
-            style: TextStyle(fontSize: 18, color: Colors.grey[600]),
-          ),
+          Icon(icon, color: Colors.white, size: 14),
+          const SizedBox(width: 4),
+          Text(label, style: AppTypography.labelSmall.copyWith(color: Colors.white)),
         ],
       ),
     );

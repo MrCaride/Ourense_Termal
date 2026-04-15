@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../models/user_model.dart';
+
+import '../components/index.dart';
 import '../models/reward_model.dart';
+import '../models/user_model.dart';
 import '../services/reward_service.dart';
 import '../services/user_data_service.dart';
+import '../theme/index.dart';
 
 class RewardDetailScreen extends StatefulWidget {
   final Reward reward;
@@ -26,7 +29,7 @@ class RewardDetailScreen extends StatefulWidget {
 class _RewardDetailScreenState extends State<RewardDetailScreen> {
   final RewardService _rewardService = RewardService();
   final UserDataService _userDataService = UserDataService();
-  
+
   bool _isRedeeming = false;
   RedeemedReward? _redeemedReward;
 
@@ -50,11 +53,45 @@ class _RewardDetailScreenState extends State<RewardDetailScreen> {
           redeemedDate: DateTime.now(),
         ),
       );
-      
-      if (found.id.isNotEmpty) {
+
+      if (found.id.isNotEmpty && mounted) {
         setState(() => _redeemedReward = found);
       }
     } catch (_) {
+    }
+  }
+
+  Color _rewardColor() {
+    switch (widget.reward.businessType) {
+      case 'spa':
+        return AppColors.thermalCool;
+      case 'restaurant':
+        return AppColors.thermalWarm;
+      case 'pastry':
+        return AppColors.thermalGold;
+      case 'shop':
+        return AppColors.accentBlue;
+      case 'experience':
+        return AppColors.accentPurple;
+      default:
+        return AppColors.thermalCool;
+    }
+  }
+
+  IconData _rewardIcon() {
+    switch (widget.reward.businessType) {
+      case 'spa':
+        return Icons.spa;
+      case 'restaurant':
+        return Icons.restaurant;
+      case 'pastry':
+        return Icons.cake;
+      case 'shop':
+        return Icons.store;
+      case 'experience':
+        return Icons.attractions;
+      default:
+        return Icons.local_offer;
     }
   }
 
@@ -67,20 +104,20 @@ class _RewardDetailScreenState extends State<RewardDetailScreen> {
     final confirmed = await _showConfirmDialog();
     if (!confirmed) return;
 
+    if (!mounted) return;
     setState(() => _isRedeeming = true);
 
     try {
-      // Descontar puntos al usuario
       final updatedUser = widget.user;
       updatedUser.points -= widget.reward.pointsCost;
       await _userDataService.setUserPoints(updatedUser.id, updatedUser.points);
 
-      // Canjear recompensa
       final redeemed = await _rewardService.redeemReward(
         widget.user.id,
         widget.reward,
       );
 
+      if (!mounted) return;
       setState(() {
         _redeemedReward = redeemed;
         _isRedeeming = false;
@@ -88,6 +125,7 @@ class _RewardDetailScreenState extends State<RewardDetailScreen> {
 
       _showSuccessDialog(redeemed.couponCode);
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isRedeeming = false);
       _showErrorDialog(e.toString());
     }
@@ -95,63 +133,64 @@ class _RewardDetailScreenState extends State<RewardDetailScreen> {
 
   Future<bool> _showConfirmDialog() async {
     return await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Confirmar canje'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('¿Deseas canjear esta recompensa?'),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Confirmar canje'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Costo:', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text('¿Deseas canjear esta recompensa?'),
+                const SizedBox(height: 16),
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Icon(Icons.stars, color: Colors.amber, size: 20),
-                    const SizedBox(width: 4),
+                    const Text('Costo:', style: TextStyle(fontWeight: FontWeight.bold)),
+                    Row(
+                      children: [
+                        const Icon(Icons.stars, color: Colors.amber, size: 20),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${widget.reward.pointsCost} puntos',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Puntos restantes:'),
                     Text(
-                      '${widget.reward.pointsCost} puntos',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      '${widget.user.points - widget.reward.pointsCost}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue[700],
+                      ),
                     ),
                   ],
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Puntos restantes:'),
-                Text(
-                  '${widget.user.points - widget.reward.pointsCost}',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue[700],
-                  ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue[700],
+                  foregroundColor: Colors.white,
                 ),
-              ],
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
+                child: const Text('Confirmar'),
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue[700],
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Confirmar'),
-          ),
-        ],
-      ),
-    ) ?? false;
+        ) ??
+        false;
   }
 
   void _showSuccessDialog(String couponCode) {
@@ -220,8 +259,8 @@ class _RewardDetailScreenState extends State<RewardDetailScreen> {
         actions: [
           ElevatedButton(
             onPressed: () {
-              Navigator.pop(context); // Cerrar diálogo
-              Navigator.pop(context, true); // Volver a pantalla anterior
+              Navigator.pop(context);
+              Navigator.pop(context, true);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.green[600],
@@ -280,7 +319,7 @@ class _RewardDetailScreenState extends State<RewardDetailScreen> {
             ),
             const SizedBox(height: 12),
             Text(
-              '¡Sigue haciendo check-ins en puntos termales para ganar más puntos!',
+              'Sigue haciendo check-ins en puntos termales para ganar más puntos.',
               style: TextStyle(fontSize: 14, color: Colors.grey[600]),
             ),
           ],
@@ -325,14 +364,34 @@ class _RewardDetailScreenState extends State<RewardDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final rewardColor = _rewardColor();
+    final redeemed = _redeemedReward;
+
     return Scaffold(
+      backgroundColor: AppColors.surfaceAlt,
       body: CustomScrollView(
         slivers: [
-          // App Bar con imagen
           SliverAppBar(
-            expandedHeight: 250,
+            expandedHeight: 340,
             pinned: true,
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            foregroundColor: Colors.white,
+            elevation: 0,
+            leading: Padding(
+              padding: const EdgeInsets.all(8),
+              child: Material(
+                color: Colors.white.withValues(alpha: 0.92),
+                borderRadius: BorderRadius.circular(16),
+                child: IconButton(
+                  icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ),
+            ),
             flexibleSpace: FlexibleSpaceBar(
+              titlePadding: const EdgeInsetsDirectional.only(start: 20, bottom: 18),
+              title: Text(widget.reward.title),
               background: Stack(
                 fit: StackFit.expand,
                 children: [
@@ -340,330 +399,394 @@ class _RewardDetailScreenState extends State<RewardDetailScreen> {
                     widget.reward.imageUrl,
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) => Container(
-                      color: Colors.grey[300],
-                      child: const Icon(Icons.image, size: 80, color: Colors.grey),
+                      color: AppColors.surface,
+                      child: const Icon(Icons.image_outlined, size: 80, color: AppColors.textDisabled),
                     ),
                   ),
-                  // Gradiente oscuro en la parte inferior
-                  DecoratedBox(
+                  const DecoratedBox(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
                           Colors.transparent,
-                          Colors.black.withOpacity(0.7),
+                          Color(0xC2000000),
                         ],
                       ),
+                    ),
+                  ),
+                  Positioned(
+                    left: 20,
+                    right: 20,
+                    bottom: 68,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Wrap(
+                          spacing: AppSpacing.sm,
+                          runSpacing: AppSpacing.sm,
+                          children: [
+                            _RewardChip(
+                              icon: _rewardIcon(),
+                              label: widget.reward.businessName,
+                              color: rewardColor,
+                            ),
+                            _RewardChip(
+                              icon: Icons.local_fire_department,
+                              label: widget.reward.discount,
+                              color: AppColors.thermalGold,
+                            ),
+                            _RewardChip(
+                              icon: Icons.stars_rounded,
+                              label: '${widget.reward.pointsCost} pts',
+                              color: AppColors.accentPurpleLight,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        Text(
+                          'Canjea una recompensa pensada para acompañar tus rutas termales.',
+                          style: AppTypography.bodyMedium.copyWith(
+                            color: Colors.white.withValues(alpha: 0.9),
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
           ),
-
-          // Contenido
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Título y descuento
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
                         child: Text(
                           widget.reward.title,
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: AppTypography.displaySmall,
                         ),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.orange[100],
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          widget.reward.discount,
-                          style: TextStyle(
-                            color: Colors.orange[900],
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
+                      const SizedBox(width: AppSpacing.sm),
+                      _RewardHighlight(
+                        label: widget.reward.discount,
+                        color: AppColors.thermalGold,
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
-
-                  // Nombre del negocio
+                  const SizedBox(height: AppSpacing.sm),
                   Text(
                     widget.reward.businessName,
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.grey[700],
-                      fontWeight: FontWeight.w500,
+                    style: AppTypography.titleMedium.copyWith(
+                      color: AppColors.textSecondary,
                     ),
                   ),
-                  const SizedBox(height: 4),
-
-                  // Ubicación
+                  const SizedBox(height: AppSpacing.xs),
                   Row(
                     children: [
-                      Icon(Icons.location_on, size: 18, color: Colors.grey[600]),
-                      const SizedBox(width: 4),
+                      const Icon(Icons.location_on_outlined, size: 18, color: AppColors.textSecondary),
+                      const SizedBox(width: AppSpacing.xs),
                       Expanded(
                         child: Text(
                           widget.reward.address,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                          ),
+                          style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondary),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
-
-                  // Descripción
-                  const Text(
-                    'Descripción',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    widget.reward.description,
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey[700],
-                      height: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Validez
-                  if (widget.reward.validUntil != null) ...[
-                    Row(
-                      children: [
-                        Icon(Icons.calendar_today, size: 18, color: Colors.grey[600]),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Válido hasta: ${widget.reward.validUntil}',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[700],
-                          ),
+                  const SizedBox(height: AppSpacing.lg),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: StatTile(
+                          icon: Icons.stars_rounded,
+                          value: '${widget.reward.pointsCost}',
+                          label: 'Costo',
+                          color: AppColors.thermalGold,
+                          highlighted: true,
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-
-                  // Términos y condiciones
-                  const Text(
-                    'Términos y condiciones',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  ...widget.reward.termsAndConditions.map((term) => Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('• ', style: TextStyle(color: Colors.grey[700])),
-                        Expanded(
-                          child: Text(
-                            term,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey[700],
-                              height: 1.4,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  )),
-                  const SizedBox(height: 32),
-
-                  // Cupón canjeado
-                  if (_redeemedReward != null) ...[
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.green[50],
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.green[200]!),
                       ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: StatTile(
+                          icon: Icons.account_balance_wallet_outlined,
+                          value: '${widget.user.points}',
+                          label: 'Tus puntos',
+                          color: AppColors.accentBlue,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  Text('Descripción', style: AppTypography.titleMedium),
+                  const SizedBox(height: AppSpacing.sm),
+                  CustomCard(
+                    backgroundColor: AppColors.background,
+                    border: Border.all(color: AppColors.borderLight),
+                    child: Text(
+                      widget.reward.description,
+                      style: AppTypography.bodyMedium.copyWith(
+                        color: AppColors.textSecondary,
+                        height: 1.55,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  if (widget.reward.validUntil != null) ...[
+                    InfoTile(
+                      icon: Icons.calendar_month_outlined,
+                      title: 'Válido hasta',
+                      subtitle: widget.reward.validUntil,
+                      iconColor: AppColors.accentBlue,
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                  ],
+                  Text('Términos y condiciones', style: AppTypography.titleMedium),
+                  const SizedBox(height: AppSpacing.sm),
+                  CustomCard(
+                    backgroundColor: AppColors.surfaceAlt,
+                    border: Border.all(color: AppColors.borderLight),
+                    child: Column(
+                      children: widget.reward.termsAndConditions
+                          .map(
+                            (term) => Padding(
+                              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Icon(
+                                    Icons.check_circle_outline,
+                                    size: 18,
+                                    color: AppColors.thermalCool,
+                                  ),
+                                  const SizedBox(width: AppSpacing.sm),
+                                  Expanded(
+                                    child: Text(
+                                      term,
+                                      style: AppTypography.bodySmall.copyWith(
+                                        color: AppColors.textSecondary,
+                                        height: 1.45,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  if (redeemed != null) ...[
+                    CustomCard(
+                      backgroundColor: AppColors.accentGreen.withValues(alpha: 0.08),
+                      border: Border.all(color: AppColors.accentGreen.withValues(alpha: 0.25)),
                       child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
                             children: [
-                              Icon(Icons.check_circle, color: Colors.green[700]),
-                              const SizedBox(width: 8),
-                              const Text(
-                                '¡Recompensa canjeada!',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
+                              Container(
+                                width: 48,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  color: AppColors.accentGreen.withValues(alpha: 0.14),
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: const Icon(Icons.check_circle, color: AppColors.accentGreen),
+                              ),
+                              const SizedBox(width: AppSpacing.md),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('¡Recompensa canjeada!', style: AppTypography.titleSmall),
+                                    const SizedBox(height: AppSpacing.xs),
+                                    Text(
+                                      'Tu cupón ya está activo. Cópialo o muéstralo en el local.',
+                                      style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 16),
-                          const Text(
-                            'Tu código de cupón:',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: AppSpacing.lg),
+                          Text('Tu código de cupón', style: AppTypography.titleSmall),
+                          const SizedBox(height: AppSpacing.sm),
                           Container(
+                            width: double.infinity,
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(8),
+                              color: AppColors.background,
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(color: AppColors.borderLight),
                             ),
                             child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(
-                                  _redeemedReward!.couponCode,
-                                  style: const TextStyle(
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 3,
+                                Expanded(
+                                  child: Text(
+                                    redeemed.couponCode,
+                                    style: AppTypography.displaySmall.copyWith(letterSpacing: 3),
                                   ),
                                 ),
                                 IconButton(
                                   icon: const Icon(Icons.copy),
                                   onPressed: _copyCodeToClipboard,
-                                  color: Colors.blue[700],
+                                  color: AppColors.thermalCool,
                                 ),
                               ],
                             ),
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: AppSpacing.sm),
                           Text(
-                            'Canjeado el: ${_redeemedReward!.redeemedDate.day}/${_redeemedReward!.redeemedDate.month}/${_redeemedReward!.redeemedDate.year}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                            ),
+                            'Canjeado el: ${redeemed.redeemedDate.day}/${redeemed.redeemedDate.month}/${redeemed.redeemedDate.year}',
+                            style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 20),
-                  ],
-
-                  // Botón de canje
-                  if (!widget.hasRedeemed) ...[
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[100],
-                        borderRadius: BorderRadius.circular(12),
+                  ] else if (!widget.hasRedeemed) ...[
+                    CustomCard(
+                      backgroundColor: widget.canAfford
+                          ? AppColors.background
+                          : AppColors.accentRed.withValues(alpha: 0.06),
+                      border: Border.all(
+                        color: widget.canAfford
+                            ? AppColors.borderLight
+                            : AppColors.accentRed.withValues(alpha: 0.25),
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          Row(
                             children: [
-                              const Text(
-                                'Costo',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey,
+                              Container(
+                                width: 48,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  color: (widget.canAfford ? AppColors.thermalGold : AppColors.accentRed)
+                                      .withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Icon(
+                                  Icons.stars_rounded,
+                                  color: widget.canAfford ? AppColors.thermalGold : AppColors.accentRed,
                                 ),
                               ),
-                              const SizedBox(height: 4),
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.stars,
-                                    color: widget.canAfford ? Colors.amber : Colors.grey,
-                                    size: 28,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    '${widget.reward.pointsCost} puntos',
-                                    style: TextStyle(
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.bold,
-                                      color: widget.canAfford
-                                          ? Colors.blue[700]
-                                          : Colors.grey,
+                              const SizedBox(width: AppSpacing.md),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('Canje de puntos', style: AppTypography.titleSmall),
+                                    const SizedBox(height: AppSpacing.xs),
+                                    Text(
+                                      widget.canAfford
+                                          ? 'Puedes canjear esta recompensa ahora mismo.'
+                                          : 'Te faltan ${widget.reward.pointsCost - widget.user.points} puntos para desbloquearla.',
+                                      style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ],
                           ),
+                          const SizedBox(height: AppSpacing.lg),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: StatTile(
+                                  icon: Icons.account_balance_wallet_outlined,
+                                  value: '${widget.user.points}',
+                                  label: 'Tus puntos',
+                                  color: AppColors.accentBlue,
+                                ),
+                              ),
+                              const SizedBox(width: AppSpacing.sm),
+                              Expanded(
+                                child: StatTile(
+                                  icon: Icons.local_offer_outlined,
+                                  value: '${widget.reward.pointsCost}',
+                                  label: 'Costo',
+                                  color: AppColors.thermalGold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: AppSpacing.lg),
+                          CustomButton(
+                            label: widget.canAfford ? 'Canjear recompensa' : 'Puntos insuficientes',
+                            icon: Icons.card_giftcard,
+                            isDisabled: !widget.canAfford,
+                            isLoading: _isRedeeming,
+                            onPressed: _redeemReward,
+                          ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 56,
-                      child: ElevatedButton(
-                        onPressed: _isRedeeming ? null : _redeemReward,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: widget.canAfford
-                              ? Colors.blue[700]
-                              : Colors.grey[400],
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: _isRedeeming
-                            ? const CircularProgressIndicator(color: Colors.white)
-                            : Text(
-                                widget.canAfford
-                                    ? 'Canjear recompensa'
-                                    : 'Puntos insuficientes',
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                      ),
-                    ),
-                    if (!widget.canAfford) ...[
-                      const SizedBox(height: 12),
-                      Text(
-                        'Te faltan ${widget.reward.pointsCost - widget.user.points} puntos',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
                   ],
                 ],
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _RewardChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  const _RewardChip({required this.icon, required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Text(label, style: AppTypography.labelSmall.copyWith(color: color)),
+        ],
+      ),
+    );
+  }
+}
+
+class _RewardHighlight extends StatelessWidget {
+  final String label;
+  final Color color;
+
+  const _RewardHighlight({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: AppTypography.titleSmall.copyWith(color: color),
       ),
     );
   }

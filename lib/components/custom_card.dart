@@ -122,63 +122,69 @@ class _CustomButtonState extends State<CustomButton> {
       fgColor = widget.backgroundColor ?? AppColors.textSecondary;
     }
 
-    return SizedBox(
-      width: widget.width ?? double.infinity,
-      height: height,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: widget.isDisabled || widget.isLoading ? null : widget.onPressed,
-          onHighlightChanged: (highlighted) {
-            setState(() => _isPressed = highlighted);
-          },
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          child: AnimatedContainer(
-            duration: AppDurations.fast,
-            decoration: BoxDecoration(
-              color: widget.isDisabled
-                  ? AppColors.disabledBg
-                  : _isPressed
-                      ? bgColor.withOpacity(0.9)
-                      : bgColor,
-              border: widget.variant != ButtonVariant.filled
-                  ? Border.all(
-                      color: fgColor.withOpacity(0.3),
-                      width: 1.5,
-                    )
-                  : null,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final buttonWidth = widget.width ?? (constraints.hasBoundedWidth ? double.infinity : null);
+
+        return SizedBox(
+          width: buttonWidth,
+          height: height,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: widget.isDisabled || widget.isLoading ? null : widget.onPressed,
+              onHighlightChanged: (highlighted) {
+                setState(() => _isPressed = highlighted);
+              },
               borderRadius: BorderRadius.circular(AppRadius.md),
-            ),
-            child: Center(
-              child: AnimatedOpacity(
-                opacity: widget.isLoading ? 0.0 : 1.0,
+              child: AnimatedContainer(
                 duration: AppDurations.fast,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (widget.icon != null)
-                      Padding(
-                        padding: EdgeInsets.only(right: AppSpacing.sm),
-                        child: Icon(
-                          widget.icon,
-                          color: widget.isDisabled ? AppColors.textDisabled : fgColor,
-                          size: 20,
+                decoration: BoxDecoration(
+                  color: widget.isDisabled
+                      ? AppColors.disabledBg
+                      : _isPressed
+                          ? bgColor.withOpacity(0.9)
+                          : bgColor,
+                  border: widget.variant != ButtonVariant.filled
+                      ? Border.all(
+                          color: fgColor.withOpacity(0.3),
+                          width: 1.5,
+                        )
+                      : null,
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                ),
+                child: Center(
+                  child: AnimatedOpacity(
+                    opacity: widget.isLoading ? 0.0 : 1.0,
+                    duration: AppDurations.fast,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (widget.icon != null)
+                          Padding(
+                            padding: EdgeInsets.only(right: AppSpacing.sm),
+                            child: Icon(
+                              widget.icon,
+                              color: widget.isDisabled ? AppColors.textDisabled : fgColor,
+                              size: 20,
+                            ),
+                          ),
+                        Text(
+                          widget.label,
+                          style: textStyle.copyWith(
+                            color: widget.isDisabled ? AppColors.textDisabled : fgColor,
+                          ),
                         ),
-                      ),
-                    Text(
-                      widget.label,
-                      style: textStyle.copyWith(
-                        color: widget.isDisabled ? AppColors.textDisabled : fgColor,
-                      ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

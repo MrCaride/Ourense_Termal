@@ -660,6 +660,7 @@ class _MapScreenState extends State<MapScreen> {
     return Scaffold(
       backgroundColor: AppColors.surfaceAlt,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: const Text('Mapa termal'),
         centerTitle: true,
         backgroundColor: AppColors.background,

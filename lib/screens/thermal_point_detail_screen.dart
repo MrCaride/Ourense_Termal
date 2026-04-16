@@ -80,6 +80,7 @@ class _ThermalPointDetailScreenState extends State<ThermalPointDetailScreen> {
           SliverAppBar(
             expandedHeight: 280,
             pinned: true,
+            leading: const SizedBox.shrink(),
             flexibleSpace: FlexibleSpaceBar(
               background: Stack(
                 fit: StackFit.expand,
@@ -107,17 +108,6 @@ class _ThermalPointDetailScreenState extends State<ThermalPointDetailScreen> {
                     ),
                   ),
                 ],
-              ),
-            ),
-            leading: Container(
-              margin: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.9),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.grey),
-                onPressed: () => Navigator.pop(context),
               ),
             ),
           ),
@@ -375,3 +365,5 @@ class _ThermalPointDetailScreenState extends State<ThermalPointDetailScreen> {
     );
   }
 }
+
+

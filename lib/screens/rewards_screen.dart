@@ -105,6 +105,7 @@ class _RewardsScreenState extends State<RewardsScreen> {
     return Scaffold(
       backgroundColor: AppColors.surfaceAlt,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: const Text('Recompensas'),
         centerTitle: false,
         backgroundColor: Colors.white,

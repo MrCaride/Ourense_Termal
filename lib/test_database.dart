@@ -154,6 +154,7 @@ class _DatabaseTestWidgetState extends State<DatabaseTestWidget> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: const Text('Test de SQLite + Firebase'),
         elevation: 0,
       ),

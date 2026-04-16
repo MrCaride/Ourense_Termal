@@ -251,6 +251,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
     if (kIsWeb) {
       return Scaffold(
         appBar: AppBar(
+          automaticallyImplyLeading: false,
           title: const Text('Introducir Código QR'),
           elevation: 0,
           centerTitle: true,
@@ -346,6 +347,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
     // En Móvil: mostrar scanner normal
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: const Text('Escanear QR'),
         elevation: 0,
         centerTitle: true,

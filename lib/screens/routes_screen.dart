@@ -85,6 +85,7 @@ class _RoutesScreenState extends State<RoutesScreen> {
     return Scaffold(
       backgroundColor: AppColors.surfaceAlt,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: const Text('Rutas y retos'),
         centerTitle: true,
         backgroundColor: AppColors.background,

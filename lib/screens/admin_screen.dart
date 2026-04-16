@@ -152,6 +152,13 @@ class _AdminScreenState extends State<AdminScreen> {
           ),
           const SizedBox(height: 12),
           _buildAdminCard(
+            icon: Icons.mark_email_unread,
+            title: 'Solicitudes de Gerentes',
+            description: 'Revisa y acepta solicitudes de asignación',
+            onTap: _showManagerPointRequests,
+          ),
+          const SizedBox(height: 12),
+          _buildAdminCard(
             icon: Icons.add_location,
             title: 'Crear Punto Termal',
             description: 'Añade un nuevo punto termal al sistema',
@@ -464,6 +471,13 @@ class _AdminScreenState extends State<AdminScreen> {
             title: 'Asignar Punto a Gerente',
             description: 'Selecciona un gerente y asígnale un punto termal',
             onTap: _showManagersToAssignList,
+          ),
+          const SizedBox(height: 12),
+          _buildAdminCard(
+            icon: Icons.mark_email_unread,
+            title: 'Solicitudes de Gerentes',
+            description: 'Revisa y acepta solicitudes de asignación de punto termal',
+            onTap: _showManagerPointRequests,
           ),
           const SizedBox(height: 12),
           _buildAdminCard(
@@ -848,6 +862,124 @@ class _AdminScreenState extends State<AdminScreen> {
         ),
       ),
     );
+  }
+
+  void _showManagerPointRequests() {
+    final userDataService = UserDataService();
+
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Solicitudes de Gerentes',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.maxFinite,
+                height: 420,
+                child: FutureBuilder<List<ThermalPointAssignmentRequest>>(
+                  future: userDataService.getPendingThermalPointRequests(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    if (snapshot.hasError) {
+                      return Center(
+                        child: Text(
+                          'Error al cargar solicitudes: ${snapshot.error}',
+                          textAlign: TextAlign.center,
+                        ),
+                      );
+                    }
+
+                    if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                      return const Center(child: Text('No hay solicitudes pendientes'));
+                    }
+
+                    final requests = snapshot.data!;
+
+                    return ListView.builder(
+                      itemCount: requests.length,
+                      itemBuilder: (context, index) {
+                        final request = requests[index];
+                        final requestedPointName = ThermalPointsData.getThermalPoints()
+                            .where((point) => point.id == request.thermalPointId)
+                            .map((point) => point.name)
+                            .cast<String?>()
+                            .firstWhere((name) => name != null, orElse: () => null);
+
+                        return Card(
+                          margin: const EdgeInsets.symmetric(vertical: 8),
+                          child: ListTile(
+                            title: Text(request.managerName),
+                            subtitle: Text(
+                              requestedPointName == null
+                                  ? 'Solicita: ${request.thermalPointId}'
+                                  : 'Solicita: $requestedPointName',
+                            ),
+                            trailing: ElevatedButton(
+                              onPressed: () async {
+                                await _approveManagerPointRequest(request);
+                              },
+                              child: const Text('Aceptar'),
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cerrar'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _approveManagerPointRequest(
+    ThermalPointAssignmentRequest request,
+  ) async {
+    final userDataService = UserDataService();
+
+    try {
+      await userDataService.approveThermalPointRequest(
+        managerId: request.managerId,
+        thermalPointId: request.thermalPointId,
+      );
+
+      if (!mounted) return;
+
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ Solicitud aceptada y punto asignado'),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al aceptar solicitud: $e')),
+      );
+    }
   }
 
   void _showManagersToAssignList() {

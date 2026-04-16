@@ -10,16 +10,27 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    function isAdmin() {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
     match /users/{userId} {
-      allow read: if isOwner(userId);
+      allow read: if isOwner(userId) || isAdmin();
       allow create: if isOwner(userId);
-      allow update: if isOwner(userId);
+      allow update: if isOwner(userId) || isAdmin();
       allow delete: if false;
 
       match /redeemed_rewards/{rewardId} {
         allow read, create, update: if isOwner(userId);
         allow delete: if false;
       }
+    }
+
+    match /manager_point_requests/{managerId} {
+      allow read: if isOwner(managerId) || isAdmin();
+      allow create, update: if isOwner(managerId) || isAdmin();
+      allow delete: if isAdmin();
     }
 
     match /check_ins/{checkInId} {
@@ -54,6 +65,10 @@ service cloud.firestore {
     match /rewards/{rewardId} {
       allow read: if true;
       allow write: if isSignedIn();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

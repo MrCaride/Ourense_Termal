@@ -6,6 +6,22 @@ import '../models/thermal_point_model.dart';
 import 'database_service.dart';
 import 'route_service.dart';
 
+class ThermalPointAssignmentRequest {
+  final String id;
+  final String managerId;
+  final String managerName;
+  final String thermalPointId;
+  final DateTime requestedAt;
+
+  const ThermalPointAssignmentRequest({
+    required this.id,
+    required this.managerId,
+    required this.managerName,
+    required this.thermalPointId,
+    required this.requestedAt,
+  });
+}
+
 class UserDataService {
   final DatabaseService _databaseService = DatabaseService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -464,11 +480,12 @@ class UserDataService {
 
   // Asignar un punto termal a un gerente
   Future<void> assignThermalPointToManager(String managerId, String? thermalPointId) async {
-    if (kIsWeb) {
-      await _firestore.collection('users').doc(managerId).update({
-        'thermalPointId': thermalPointId,
-      });
-    } else {
+    await _firestore.collection('users').doc(managerId).update({
+      'thermalPointId': thermalPointId,
+      'updatedAt': DateTime.now(),
+    });
+
+    if (!kIsWeb) {
       final db = await _databaseService.database;
       await db.update(
         'users',
@@ -481,5 +498,77 @@ class UserDataService {
         whereArgs: [managerId],
       );
     }
+  }
+
+  Future<void> submitThermalPointRequest({
+    required String managerId,
+    required String managerName,
+    required String thermalPointId,
+  }) async {
+    final now = DateTime.now();
+    await _firestore.collection('manager_point_requests').doc(managerId).set({
+      'managerId': managerId,
+      'managerName': managerName,
+      'thermalPointId': thermalPointId,
+      'status': 'pending',
+      'requestedAt': now,
+      'updatedAt': now,
+    }, SetOptions(merge: true));
+  }
+
+  Future<String?> getManagerPendingThermalPointRequest(String managerId) async {
+    final snapshot = await _firestore
+        .collection('manager_point_requests')
+        .doc(managerId)
+        .get();
+
+    if (!snapshot.exists) return null;
+
+    final data = snapshot.data();
+    if (data == null || data['status'] != 'pending') {
+      return null;
+    }
+
+    return data['thermalPointId'] as String?;
+  }
+
+  Future<List<ThermalPointAssignmentRequest>> getPendingThermalPointRequests() async {
+    final snapshot = await _firestore
+        .collection('manager_point_requests')
+        .where('status', isEqualTo: 'pending')
+        .get();
+
+    final requests = snapshot.docs.map((doc) {
+      final data = doc.data();
+      final requestedAt = data['requestedAt'];
+
+      return ThermalPointAssignmentRequest(
+        id: doc.id,
+        managerId: data['managerId'] as String? ?? doc.id,
+        managerName: data['managerName'] as String? ?? 'Gerente',
+        thermalPointId: data['thermalPointId'] as String? ?? '',
+        requestedAt: requestedAt is Timestamp
+            ? requestedAt.toDate()
+            : DateTime.now(),
+      );
+    }).toList();
+
+    requests.sort((a, b) => b.requestedAt.compareTo(a.requestedAt));
+    return requests;
+  }
+
+  Future<void> approveThermalPointRequest({
+    required String managerId,
+    required String thermalPointId,
+  }) async {
+    final now = DateTime.now();
+
+    await assignThermalPointToManager(managerId, thermalPointId);
+
+    await _firestore.collection('manager_point_requests').doc(managerId).set({
+      'status': 'approved',
+      'resolvedAt': now,
+      'updatedAt': now,
+    }, SetOptions(merge: true));
   }
 }

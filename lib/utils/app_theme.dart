@@ -56,6 +56,7 @@ class AppTheme {
         backgroundColor: AppColors.background,
         foregroundColor: AppColors.primaryDark,
         elevation: 0,
+        automaticallyImplyLeading: false,
         centerTitle: false,
         scrolledUnderElevation: 1,
         titleTextStyle: AppTypography.appBarTitle,

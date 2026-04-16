@@ -374,21 +374,11 @@ class _RewardDetailScreenState extends State<RewardDetailScreen> {
           SliverAppBar(
             expandedHeight: 340,
             pinned: true,
+            automaticallyImplyLeading: false,
             backgroundColor: Colors.transparent,
             surfaceTintColor: Colors.transparent,
             foregroundColor: Colors.white,
             elevation: 0,
-            leading: Padding(
-              padding: const EdgeInsets.all(8),
-              child: Material(
-                color: Colors.white.withValues(alpha: 0.92),
-                borderRadius: BorderRadius.circular(16),
-                child: IconButton(
-                  icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ),
-            ),
             flexibleSpace: FlexibleSpaceBar(
               titlePadding: const EdgeInsetsDirectional.only(start: 20, bottom: 18),
               title: Text(widget.reward.title),

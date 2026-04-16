@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../components/index.dart';
 import '../models/reward_model.dart';
@@ -6,7 +7,6 @@ import '../models/user_model.dart';
 import '../services/reward_service.dart';
 import '../services/user_data_service.dart';
 import '../theme/index.dart';
-import 'reward_detail_screen.dart';
 
 class RewardsScreen extends StatefulWidget {
   final User user;
@@ -82,20 +82,40 @@ class _RewardsScreenState extends State<RewardsScreen> {
     return _redeemedRewards.any((r) => r.rewardId == reward.id && !r.used);
   }
 
-  Future<void> _navigateToRewardDetail(Reward reward) async {
-    final result = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(
-        builder: (context) => RewardDetailScreen(
-          reward: reward,
-          user: _user,
-          canAfford: _canAfford(reward),
-          hasRedeemed: _hasRedeemed(reward),
-        ),
-      ),
+  Future<void> _showRewardDetails(Reward reward) async {
+    final didChange = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.92,
+          minChildSize: 0.55,
+          maxChildSize: 0.97,
+          builder: (context, scrollController) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+              ),
+              child: SingleChildScrollView(
+                controller: scrollController,
+                child: _RewardDetailPanel(
+                  reward: reward,
+                  user: _user,
+                  canAfford: _canAfford(reward),
+                  hasRedeemed: _hasRedeemed(reward),
+                  onClosed: () => Navigator.pop(context),
+                  onChanged: () => Navigator.pop(context, true),
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
 
-    if (result == true) {
+    if (didChange == true) {
       await _loadData();
     }
   }
@@ -256,7 +276,7 @@ class _RewardsScreenState extends State<RewardsScreen> {
       borderRadius: AppRadius.xl,
       padding: EdgeInsets.zero,
       shadows: AppShadows.elevation2,
-      onTap: () => _navigateToRewardDetail(reward),
+      onTap: () => _showRewardDetails(reward),
       isClickable: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -392,7 +412,7 @@ class _RewardsScreenState extends State<RewardsScreen> {
                           : canAfford
                               ? AppColors.thermalCool
                               : AppColors.textDisabled,
-                      onPressed: () => _navigateToRewardDetail(reward),
+                      onPressed: () => _showRewardDetails(reward),
                     ),
                   ],
                 ),
@@ -412,6 +432,309 @@ class _RewardsScreenState extends State<RewardsScreen> {
         title: 'No hay recompensas en esta categoría',
         description: 'Cambia el filtro o vuelve más tarde para descubrir nuevas opciones.',
         iconColor: AppColors.thermalCool,
+      ),
+    );
+  }
+}
+
+class _RewardDetailPanel extends StatefulWidget {
+  final Reward reward;
+  final User user;
+  final bool canAfford;
+  final bool hasRedeemed;
+  final VoidCallback onClosed;
+  final VoidCallback onChanged;
+
+  const _RewardDetailPanel({
+    required this.reward,
+    required this.user,
+    required this.canAfford,
+    required this.hasRedeemed,
+    required this.onClosed,
+    required this.onChanged,
+  });
+
+  @override
+  State<_RewardDetailPanel> createState() => _RewardDetailPanelState();
+}
+
+class _RewardDetailPanelState extends State<_RewardDetailPanel> {
+  final RewardService _rewardService = RewardService();
+  final UserDataService _userDataService = UserDataService();
+  RedeemedReward? _redeemedReward;
+  bool _isRedeeming = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.hasRedeemed) {
+      _loadRedeemedReward();
+    }
+  }
+
+  Future<void> _loadRedeemedReward() async {
+    try {
+      final redeemed = await _rewardService.getUserRedeemedRewards(widget.user.id);
+      final found = redeemed.firstWhere(
+        (r) => r.rewardId == widget.reward.id && !r.used,
+        orElse: () => RedeemedReward(
+          id: '',
+          rewardId: '',
+          couponCode: '',
+          redeemedDate: DateTime.now(),
+        ),
+      );
+
+      if (found.id.isNotEmpty && mounted) {
+        setState(() => _redeemedReward = found);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _redeemReward() async {
+    if (!widget.canAfford) return;
+
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Confirmar canje'),
+            content: Text('¿Deseas canjear "${widget.reward.title}" por ${widget.reward.pointsCost} puntos?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Confirmar'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+
+    if (!confirmed) return;
+
+    setState(() => _isRedeeming = true);
+    try {
+      final updatedUser = widget.user;
+      updatedUser.points -= widget.reward.pointsCost;
+      await _userDataService.setUserPoints(updatedUser.id, updatedUser.points);
+
+      final redeemed = await _rewardService.redeemReward(widget.user.id, widget.reward);
+
+      if (!mounted) return;
+      setState(() {
+        _redeemedReward = redeemed;
+        _isRedeeming = false;
+      });
+
+      widget.onChanged();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isRedeeming = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al canjear: $e')),
+      );
+    }
+  }
+
+  void _copyCoupon() {
+    if (_redeemedReward == null) return;
+    Clipboard.setData(ClipboardData(text: _redeemedReward!.couponCode));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Código copiado al portapapeles')),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final reward = widget.reward;
+    final redeemed = _redeemedReward;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: AppColors.borderLight,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  onPressed: widget.onClosed,
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(24),
+                  child: Image.network(
+                    reward.imageUrl,
+                    height: 220,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      height: 220,
+                      color: AppColors.surfaceAlt,
+                      child: const Icon(Icons.image_rounded, size: 64),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(reward.title, style: AppTypography.displaySmall),
+                const SizedBox(height: 6),
+                Text(reward.businessName, style: AppTypography.titleMedium.copyWith(color: AppColors.textSecondary)),
+                const SizedBox(height: 8),
+                Text(reward.address, style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondary)),
+                const SizedBox(height: 16),
+                CustomCard(
+                  backgroundColor: AppColors.surfaceAlt,
+                  border: Border.all(color: AppColors.borderLight),
+                  child: Text(
+                    reward.description,
+                    style: AppTypography.bodyMedium.copyWith(height: 1.5, color: AppColors.textSecondary),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _RewardMiniStat(
+                        icon: Icons.stars_rounded,
+                        label: 'Costo',
+                        value: '${reward.pointsCost}',
+                        color: AppColors.thermalGold,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _RewardMiniStat(
+                        icon: Icons.account_balance_wallet_outlined,
+                        label: 'Tus puntos',
+                        value: '${widget.user.points}',
+                        color: AppColors.accentBlue,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Text('Términos y condiciones', style: AppTypography.titleMedium),
+                const SizedBox(height: 8),
+                CustomCard(
+                  backgroundColor: AppColors.background,
+                  border: Border.all(color: AppColors.borderLight),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: reward.termsAndConditions
+                        .map(
+                          (term) => Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Icon(Icons.check_circle_outline, size: 18, color: AppColors.thermalCool),
+                                const SizedBox(width: 8),
+                                Expanded(child: Text(term, style: AppTypography.bodySmall.copyWith(height: 1.45))),
+                              ],
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                if (redeemed != null) ...[
+                  CustomCard(
+                    backgroundColor: AppColors.accentGreen.withValues(alpha: 0.08),
+                    border: Border.all(color: AppColors.accentGreen.withValues(alpha: 0.25)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('¡Recompensa canjeada!', style: AppTypography.titleSmall),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                redeemed.couponCode,
+                                style: AppTypography.displaySmall.copyWith(letterSpacing: 3),
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: _copyCoupon,
+                              icon: const Icon(Icons.copy),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ] else ...[
+                  CustomButton(
+                    label: widget.canAfford ? 'Canjear recompensa' : 'Puntos insuficientes',
+                    icon: Icons.card_giftcard,
+                    isDisabled: !widget.canAfford,
+                    isLoading: _isRedeeming,
+                    onPressed: _redeemReward,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RewardMiniStat extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+
+  const _RewardMiniStat({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: color.withValues(alpha: 0.16)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color),
+          const SizedBox(height: 8),
+          Text(label, style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary)),
+          const SizedBox(height: 4),
+          Text(value, style: AppTypography.titleMedium.copyWith(fontWeight: FontWeight.bold)),
+        ],
       ),
     );
   }

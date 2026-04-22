@@ -137,7 +137,11 @@ class _ThermalPointDetailScreenState extends State<ThermalPointDetailScreen> {
           SliverAppBar(
             expandedHeight: 280,
             pinned: true,
-            leading: const SizedBox.shrink(),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              color: Colors.white,
+              onPressed: () => Navigator.pop(context),
+            ),
             flexibleSpace: FlexibleSpaceBar(
               background: Stack(
                 fit: StackFit.expand,

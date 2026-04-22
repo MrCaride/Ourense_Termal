@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_map_cancellable_tile_provider/flutter_map_cancellable_tile_provider.dart';
+import 'package:latlong2/latlong.dart';
 import '../data/thermal_points_data.dart';
+import '../models/thermal_point_model.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import '../services/user_data_service.dart';
@@ -18,6 +23,7 @@ class ThermalManagerScreen extends StatefulWidget {
 
 class _ThermalManagerScreenState extends State<ThermalManagerScreen> {
   final UserDataService _userDataService = UserDataService();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   int _selectedIndex = 0;
   final List<String> _managerImages = [];
   final TextEditingController _imageUrlController = TextEditingController();
@@ -26,6 +32,10 @@ class _ThermalManagerScreenState extends State<ThermalManagerScreen> {
   String? _selectedRequestedThermalPointId;
   bool _isLoadingStatus = true;
   bool _isSubmittingRequest = false;
+
+  CollectionReference<Map<String, dynamic>> get _thermalPointsCollection {
+    return _firestore.collection('thermal_points');
+  }
 
   @override
   void initState() {
@@ -123,6 +133,435 @@ class _ThermalManagerScreenState extends State<ThermalManagerScreen> {
       }
     }
     return pointId;
+  }
+
+  List<String> _asStringList(dynamic value) {
+    if (value is List) {
+      return value.map((item) => item.toString()).toList();
+    }
+    return const [];
+  }
+
+  Map<String, dynamic> _thermalPointToMap(ThermalPoint point) {
+    return {
+      'name': point.name,
+      'description': point.description,
+      'type': point.type,
+      'temperature': point.temperature,
+      'address': point.address,
+      'latitude': point.latitude,
+      'longitude': point.longitude,
+      'imageUrl': point.imageUrl,
+      'price': point.price,
+      'openingHours': point.openingHours,
+      'accessibility': point.accessibility,
+      'properties': point.properties,
+      'safety': point.safety,
+      'updatedAt': DateTime.now(),
+    };
+  }
+
+  ThermalPoint _thermalPointFromData(String id, Map<String, dynamic> data) {
+    return ThermalPoint(
+      id: id,
+      name: data['name'] as String? ?? 'Punto termal',
+      description: data['description'] as String? ?? '',
+      type: data['type'] as String? ?? 'pool',
+      temperature: (data['temperature'] as num?)?.toDouble() ?? 37.0,
+      address: data['address'] as String? ?? '',
+      latitude: (data['latitude'] as num?)?.toDouble() ?? 0.0,
+      longitude: (data['longitude'] as num?)?.toDouble() ?? 0.0,
+      imageUrl: data['imageUrl'] as String? ?? '',
+      price: data['price'] as String?,
+      openingHours: data['openingHours'] as String?,
+      accessibility: data['accessibility'] as String? ?? 'estandar',
+      properties: _asStringList(data['properties']),
+      safety: _asStringList(data['safety']),
+    );
+  }
+
+  Future<ThermalPoint?> _getAssignedThermalPoint() async {
+    final pointId = _assignedThermalPointId;
+    if (pointId == null) return null;
+
+    final doc = await _thermalPointsCollection.doc(pointId).get();
+    if (doc.exists && doc.data() != null) {
+      return _thermalPointFromData(doc.id, doc.data()!);
+    }
+
+    final fallback = ThermalPointsData.getThermalPoints().where((p) => p.id == pointId);
+    if (fallback.isNotEmpty) {
+      return fallback.first;
+    }
+    return null;
+  }
+
+  Future<void> _showEditAssignedThermalPointDialog() async {
+    final pointId = _assignedThermalPointId;
+    if (pointId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No tienes un punto termal asignado')),
+      );
+      return;
+    }
+
+    try {
+      final point = await _getAssignedThermalPoint();
+      if (!mounted) return;
+
+      if (point == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se encontró tu punto termal para editar')),
+        );
+        return;
+      }
+
+      await _showThermalPointFormDialog(point: point);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al cargar el punto termal: $e')),
+      );
+    }
+  }
+
+  Future<void> _showThermalPointFormDialog({required ThermalPoint point}) async {
+    final nameController = TextEditingController(text: point.name);
+    final descriptionController = TextEditingController(text: point.description);
+    final addressController = TextEditingController(text: point.address);
+    final imageUrlController = TextEditingController(text: point.imageUrl);
+    final temperatureController = TextEditingController(
+      text: point.temperature.toString(),
+    );
+    double selectedLatitude = point.latitude;
+    double selectedLongitude = point.longitude;
+    final openingHoursController = TextEditingController(text: point.openingHours ?? '');
+    final priceController = TextEditingController(text: point.price ?? '');
+    final propertiesController = TextEditingController(
+      text: point.properties.join(', '),
+    );
+    final safetyController = TextEditingController(
+      text: point.safety.join(', '),
+    );
+
+    String selectedType = point.type;
+
+    await showDialog(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: StatefulBuilder(
+              builder: (context, setDialogState) => Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Editar Punto Termal',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: nameController,
+                    decoration: const InputDecoration(labelText: 'Nombre'),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: descriptionController,
+                    maxLines: 3,
+                    decoration: const InputDecoration(labelText: 'Descripción'),
+                  ),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedType,
+                    items: const [
+                      DropdownMenuItem(value: 'pool', child: Text('Poza Termal')),
+                      DropdownMenuItem(value: 'fountain', child: Text('Fuente Termal')),
+                      DropdownMenuItem(value: 'spa', child: Text('Balneario / Spa')),
+                    ],
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setDialogState(() {
+                        selectedType = value;
+                      });
+                    },
+                    decoration: const InputDecoration(labelText: 'Tipo'),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: addressController,
+                    decoration: const InputDecoration(labelText: 'Dirección'),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: imageUrlController,
+                    decoration: const InputDecoration(labelText: 'URL de imagen'),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: temperatureController,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          decoration: const InputDecoration(labelText: 'Temperatura'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: priceController,
+                          decoration: const InputDecoration(labelText: 'Precio (opcional)'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.blue.withValues(alpha: 0.25)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Ubicación seleccionada',
+                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text('Lat: ${selectedLatitude.toStringAsFixed(6)} · Lng: ${selectedLongitude.toStringAsFixed(6)}'),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () async {
+                              final selected = await _pickLocationOnMap(
+                                initialLatitude: selectedLatitude,
+                                initialLongitude: selectedLongitude,
+                              );
+
+                              if (selected == null) return;
+
+                              setDialogState(() {
+                                selectedLatitude = selected.latitude;
+                                selectedLongitude = selected.longitude;
+                              });
+                            },
+                            icon: const Icon(Icons.map_outlined),
+                            label: const Text('Relocalizar en mapa'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: openingHoursController,
+                    decoration: const InputDecoration(labelText: 'Horario (opcional)'),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: propertiesController,
+                    decoration: const InputDecoration(labelText: 'Propiedades (separadas por coma)'),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: safetyController,
+                    decoration: const InputDecoration(labelText: 'Consejos de seguridad (coma)'),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(dialogContext),
+                        child: const Text('Cancelar'),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: () async {
+                          final name = nameController.text.trim();
+                          final description = descriptionController.text.trim();
+                          final address = addressController.text.trim();
+                          final imageUrl = imageUrlController.text.trim();
+                          final temp = double.tryParse(temperatureController.text.trim());
+
+                          if (name.isEmpty || description.isEmpty || address.isEmpty || imageUrl.isEmpty ||
+                              temp == null) {
+                            ScaffoldMessenger.of(dialogContext).showSnackBar(
+                              const SnackBar(content: Text('Completa todos los campos obligatorios')),
+                            );
+                            return;
+                          }
+
+                          final properties = propertiesController.text
+                              .split(',')
+                              .map((e) => e.trim())
+                              .where((e) => e.isNotEmpty)
+                              .toList();
+
+                          final safety = safetyController.text
+                              .split(',')
+                              .map((e) => e.trim())
+                              .where((e) => e.isNotEmpty)
+                              .toList();
+
+                          try {
+                            final thermalPoint = ThermalPoint(
+                              id: point.id,
+                              name: name,
+                              description: description,
+                              type: selectedType,
+                              temperature: temp,
+                              address: address,
+                              latitude: selectedLatitude,
+                              longitude: selectedLongitude,
+                              imageUrl: imageUrl,
+                              price: priceController.text.trim().isEmpty
+                                  ? null
+                                  : priceController.text.trim(),
+                              openingHours: openingHoursController.text.trim().isEmpty
+                                  ? null
+                                  : openingHoursController.text.trim(),
+                              accessibility: point.accessibility,
+                              properties: properties.isEmpty ? const ['Natural'] : properties,
+                              safety: safety.isEmpty ? const ['Respeta la señalización'] : safety,
+                            );
+
+                            await _thermalPointsCollection
+                                .doc(point.id)
+                                .set(_thermalPointToMap(thermalPoint), SetOptions(merge: true));
+
+                            if (!dialogContext.mounted) return;
+                            Navigator.pop(dialogContext);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('✅ Punto termal actualizado')),
+                            );
+                          } catch (e) {
+                            if (!dialogContext.mounted) return;
+                            ScaffoldMessenger.of(dialogContext).showSnackBar(
+                              SnackBar(content: Text('Error al guardar: $e')),
+                            );
+                          }
+                        },
+                        child: const Text('Guardar cambios'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<LatLng?> _pickLocationOnMap({
+    required double initialLatitude,
+    required double initialLongitude,
+  }) async {
+    LatLng selectedPoint = LatLng(initialLatitude, initialLongitude);
+
+    return showDialog<LatLng>(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: SizedBox(
+          width: 860,
+          height: 620,
+          child: StatefulBuilder(
+            builder: (context, setMapState) => Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Selecciona ubicación en el mapa',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                        ),
+                      ),
+                      Text(
+                        'Lat ${selectedPoint.latitude.toStringAsFixed(5)} · Lng ${selectedPoint.longitude.toStringAsFixed(5)}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: FlutterMap(
+                    options: MapOptions(
+                      initialCenter: selectedPoint,
+                      initialZoom: 13,
+                      onTap: (_, latLng) {
+                        setMapState(() {
+                          selectedPoint = latLng;
+                        });
+                      },
+                    ),
+                    children: [
+                      TileLayer(
+                        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        userAgentPackageName: 'com.example.ourense_termal',
+                        tileProvider: CancellableNetworkTileProvider(),
+                      ),
+                      MarkerLayer(
+                        markers: [
+                          Marker(
+                            point: selectedPoint,
+                            width: 42,
+                            height: 42,
+                            child: const Icon(
+                              Icons.location_pin,
+                              color: Colors.red,
+                              size: 42,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Cancelar'),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton.icon(
+                        onPressed: () => Navigator.pop(context, selectedPoint),
+                        icon: const Icon(Icons.check),
+                        label: const Text('Usar esta ubicación'),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   void _generateQRCheckIn() {
@@ -300,7 +739,7 @@ class _ThermalManagerScreenState extends State<ThermalManagerScreen> {
           ),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
-            value: _selectedRequestedThermalPointId,
+            initialValue: _selectedRequestedThermalPointId,
             items: thermalPoints
                 .map(
                   (point) => DropdownMenuItem<String>(
@@ -369,10 +808,19 @@ class _ThermalManagerScreenState extends State<ThermalManagerScreen> {
         children: [
           _buildAssignedPointBanner(),
           const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _showEditAssignedThermalPointDialog,
+              icon: const Icon(Icons.edit_location_alt),
+              label: const Text('Editar mi punto termal'),
+            ),
+          ),
+          const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppTheme.light.primaryColor.withOpacity(0.1),
+              color: AppTheme.light.primaryColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Column(

@@ -604,16 +604,35 @@ class _ThermalManagerScreenState extends State<ThermalManagerScreen> {
     );
   }
 
-  void _addImage() {
-    if (_imageUrlController.text.isNotEmpty) {
-      setState(() {
-        _managerImages.add(_imageUrlController.text);
-        _imageUrlController.clear();
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Imagen añadida')),
-      );
+  Future<void> _addImage() async {
+    final imageUrl = _imageUrlController.text.trim();
+    if (imageUrl.isEmpty) return;
+
+    setState(() {
+      _managerImages.add(imageUrl);
+      _imageUrlController.clear();
+    });
+
+    final pointId = _assignedThermalPointId;
+    if (pointId != null) {
+      try {
+        await _thermalPointsCollection.doc(pointId).set({
+          'imageUrl': imageUrl,
+          'updatedAt': DateTime.now(),
+        }, SetOptions(merge: true));
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Imagen guardada en galería, pero no en el punto termal: $e')),
+        );
+        return;
+      }
     }
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Imagen añadida y actualizada en el punto termal')),
+    );
   }
 
   void _deleteImage(int index) {

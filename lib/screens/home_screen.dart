@@ -1,6 +1,7 @@
 ﻿import 'dart:async';
 import 'dart:ui';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../components/index.dart';
@@ -28,6 +29,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   final UserDataService _userDataService = UserDataService();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   late User _user;
   late List<ThermalPoint> _thermalPoints;
@@ -36,6 +38,47 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _showHeader = false;
   bool _showGreeting = true;
   Timer? _greetingTimer;
+
+  List<String> _asStringList(dynamic value) {
+    if (value is List) {
+      return value.map((item) => item.toString()).toList();
+    }
+    return const [];
+  }
+
+  ThermalPoint _thermalPointFromData(String id, Map<String, dynamic> data) {
+    return ThermalPoint(
+      id: id,
+      name: data['name'] as String? ?? 'Punto termal',
+      description: data['description'] as String? ?? '',
+      type: data['type'] as String? ?? 'pool',
+      temperature: (data['temperature'] as num?)?.toDouble() ?? 37.0,
+      address: data['address'] as String? ?? '',
+      latitude: (data['latitude'] as num?)?.toDouble() ?? 0.0,
+      longitude: (data['longitude'] as num?)?.toDouble() ?? 0.0,
+      imageUrl: data['imageUrl'] as String? ?? '',
+      price: data['price'] as String?,
+      openingHours: data['openingHours'] as String?,
+      accessibility: data['accessibility'] as String? ?? 'estandar',
+      properties: _asStringList(data['properties']),
+      safety: _asStringList(data['safety']),
+    );
+  }
+
+  Future<List<ThermalPoint>> _loadThermalPoints() async {
+    try {
+      final snapshot = await _firestore.collection('thermal_points').orderBy('name').get();
+      if (snapshot.docs.isNotEmpty) {
+        return snapshot.docs
+            .map((doc) => _thermalPointFromData(doc.id, doc.data()))
+            .toList();
+      }
+    } catch (_) {
+      // Fallback a datos locales si Firestore no está disponible.
+    }
+
+    return ThermalPointsData.getThermalPoints();
+  }
 
   @override
   void initState() {
@@ -72,7 +115,7 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
-    _thermalPoints = ThermalPointsData.getThermalPoints();
+    _thermalPoints = await _loadThermalPoints();
 
     try {
       _checkIns = await _userDataService.getUserCheckIns(_user.id);
@@ -89,6 +132,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _refreshData() async {
     try {
+      _thermalPoints = await _loadThermalPoints();
       _checkIns = await _userDataService.getUserCheckIns(_user.id);
       _user = await _userDataService.getUserWithStats(_user.id);
       setState(() {});

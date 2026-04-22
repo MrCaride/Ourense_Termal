@@ -1,14 +1,15 @@
+﻿import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+
 import '../models/thermal_point_model.dart';
 import '../models/user_model.dart';
-import '../services/user_data_service.dart';
 import 'qr_scanner_screen.dart';
 
 class ThermalPointDetailScreen extends StatefulWidget {
   final ThermalPoint point;
   final bool hasCheckedIn;
   final String userId;
-  final User? user; // Agregado para pasar a QR Scanner
+  final User? user;
 
   const ThermalPointDetailScreen({
     super.key,
@@ -24,13 +25,64 @@ class ThermalPointDetailScreen extends StatefulWidget {
 
 class _ThermalPointDetailScreenState extends State<ThermalPointDetailScreen> {
   late bool _checkedIn;
-  final bool _isLoading = false;
-  final UserDataService _userDataService = UserDataService();
+  bool _isLoadingPoint = true;
+  late ThermalPoint _currentPoint;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   @override
   void initState() {
     super.initState();
     _checkedIn = widget.hasCheckedIn;
+    _currentPoint = widget.point;
+    _loadLatestPoint();
+  }
+
+  List<String> _asStringList(dynamic value) {
+    if (value is List) {
+      return value.map((item) => item.toString()).toList();
+    }
+    return const [];
+  }
+
+  ThermalPoint _thermalPointFromData(String id, Map<String, dynamic> data) {
+    return ThermalPoint(
+      id: id,
+      name: data['name'] as String? ?? 'Punto termal',
+      description: data['description'] as String? ?? '',
+      type: data['type'] as String? ?? 'pool',
+      temperature: (data['temperature'] as num?)?.toDouble() ?? 37.0,
+      address: data['address'] as String? ?? '',
+      latitude: (data['latitude'] as num?)?.toDouble() ?? 0.0,
+      longitude: (data['longitude'] as num?)?.toDouble() ?? 0.0,
+      imageUrl: data['imageUrl'] as String? ?? '',
+      price: data['price'] as String?,
+      openingHours: data['openingHours'] as String?,
+      accessibility: data['accessibility'] as String? ?? 'estandar',
+      properties: _asStringList(data['properties']),
+      safety: _asStringList(data['safety']),
+    );
+  }
+
+  Future<void> _loadLatestPoint() async {
+    try {
+      final doc = await _firestore.collection('thermal_points').doc(widget.point.id).get();
+      if (!mounted) return;
+
+      if (doc.exists && doc.data() != null) {
+        setState(() {
+          _currentPoint = _thermalPointFromData(doc.id, doc.data()!);
+          _isLoadingPoint = false;
+        });
+        return;
+      }
+    } catch (_) {
+      // Si falla Firestore, se mantiene el punto recibido por navegación.
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _isLoadingPoint = false;
+    });
   }
 
   Future<void> _handleCheckIn() async {
@@ -53,7 +105,7 @@ class _ThermalPointDetailScreenState extends State<ThermalPointDetailScreen> {
       MaterialPageRoute(
         builder: (context) => QRScannerScreen(
           user: widget.user!,
-          thermalPoint: widget.point,
+          thermalPoint: _currentPoint,
         ),
       ),
     );
@@ -73,10 +125,15 @@ class _ThermalPointDetailScreenState extends State<ThermalPointDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoadingPoint) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          // Imagen header
           SliverAppBar(
             expandedHeight: 280,
             pinned: true,
@@ -86,7 +143,7 @@ class _ThermalPointDetailScreenState extends State<ThermalPointDetailScreen> {
                 fit: StackFit.expand,
                 children: [
                   Image.network(
-                    widget.point.imageUrl,
+                    _currentPoint.imageUrl,
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) {
                       return Container(
@@ -101,8 +158,8 @@ class _ThermalPointDetailScreenState extends State<ThermalPointDetailScreen> {
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
-                          Colors.black.withOpacity(0.3),
-                          Colors.black.withOpacity(0.6),
+                          Colors.black.withValues(alpha: 0.3),
+                          Colors.black.withValues(alpha: 0.6),
                         ],
                       ),
                     ),
@@ -111,20 +168,18 @@ class _ThermalPointDetailScreenState extends State<ThermalPointDetailScreen> {
               ),
             ),
           ),
-          // Contenido
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Título
                   Chip(
-                    label: Text(widget.point.getTypeLabel()),
+                    label: Text(_currentPoint.getTypeLabel()),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    widget.point.name,
+                    _currentPoint.name,
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -137,7 +192,7 @@ class _ThermalPointDetailScreenState extends State<ThermalPointDetailScreen> {
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
-                          widget.point.address,
+                          _currentPoint.address,
                           style: TextStyle(
                             fontSize: 14,
                             color: Colors.grey[600],
@@ -147,7 +202,6 @@ class _ThermalPointDetailScreenState extends State<ThermalPointDetailScreen> {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  // Info rápida
                   GridView.count(
                     crossAxisCount: 2,
                     shrinkWrap: true,
@@ -158,33 +212,32 @@ class _ThermalPointDetailScreenState extends State<ThermalPointDetailScreen> {
                       _buildInfoCard(
                         '🌡️',
                         'Temperatura',
-                        '${widget.point.temperature}°C',
+                        '${_currentPoint.temperature}°C',
                         Colors.orange,
                       ),
-                      if (widget.point.openingHours != null)
+                      if (_currentPoint.openingHours != null)
                         _buildInfoCard(
                           '🕐',
                           'Horario',
-                          widget.point.openingHours!,
+                          _currentPoint.openingHours!,
                           Colors.blue,
                         ),
-                      if (widget.point.price != null)
+                      if (_currentPoint.price != null)
                         _buildInfoCard(
                           '💰',
                           'Precio',
-                          widget.point.price!,
+                          _currentPoint.price!,
                           Colors.green,
                         ),
                       _buildInfoCard(
                         '♿',
                         'Accesibilidad',
-                        widget.point.accessibility,
+                        _currentPoint.accessibility,
                         Colors.purple,
                       ),
                     ],
                   ),
                   const SizedBox(height: 24),
-                  // Descripción
                   const Text(
                     'Descripción',
                     style: TextStyle(
@@ -194,7 +247,7 @@ class _ThermalPointDetailScreenState extends State<ThermalPointDetailScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    widget.point.description,
+                    _currentPoint.description,
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.grey[600],
@@ -202,7 +255,6 @@ class _ThermalPointDetailScreenState extends State<ThermalPointDetailScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  // Propiedades
                   const Text(
                     'Propiedades del Agua',
                     style: TextStyle(
@@ -213,7 +265,7 @@ class _ThermalPointDetailScreenState extends State<ThermalPointDetailScreen> {
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 8,
-                    children: widget.point.properties
+                    children: _currentPoint.properties
                         .map(
                           (prop) => Chip(
                             label: Text(prop),
@@ -224,7 +276,6 @@ class _ThermalPointDetailScreenState extends State<ThermalPointDetailScreen> {
                         .toList(),
                   ),
                   const SizedBox(height: 24),
-                  // Seguridad
                   const Text(
                     'Consejos de Seguridad',
                     style: TextStyle(
@@ -233,57 +284,45 @@ class _ThermalPointDetailScreenState extends State<ThermalPointDetailScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  ...widget.point.safety
-                      .map(
-                        (safety) => Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('⚠️', style: TextStyle(fontSize: 16)),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  safety,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: Colors.grey[700],
-                                  ),
-                                ),
+                  ..._currentPoint.safety.map(
+                    (safety) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('⚠️', style: TextStyle(fontSize: 16)),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              safety,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.grey[700],
                               ),
-                            ],
+                            ),
                           ),
-                        ),
-                      )
-                      ,
+                        ],
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 24),
-                  // Botón check-in
                   if (!_checkedIn)
                     SizedBox(
                       width: double.infinity,
                       child: FilledButton(
-                        onPressed: _isLoading ? null : _handleCheckIn,
+                        onPressed: _handleCheckIn,
                         style: FilledButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           backgroundColor: Colors.cyan[500],
                         ),
-                        child: _isLoading
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.qr_code_2),
-                                  SizedBox(width: 8),
-                                  Text('Hacer Check-in (+50 puntos)'),
-                                ],
-                              ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.qr_code_2),
+                            SizedBox(width: 8),
+                            Text('Hacer Check-in (+50 puntos)'),
+                          ],
+                        ),
                       ),
                     )
                   else
@@ -365,5 +404,3 @@ class _ThermalPointDetailScreenState extends State<ThermalPointDetailScreen> {
     );
   }
 }
-
-

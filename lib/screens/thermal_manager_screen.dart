@@ -8,6 +8,7 @@ import '../data/thermal_points_data.dart';
 import '../models/thermal_point_model.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
+import '../services/qr_service.dart';
 import '../services/user_data_service.dart';
 import '../screens/login_screen.dart';
 import '../utils/app_theme.dart';
@@ -23,6 +24,7 @@ class ThermalManagerScreen extends StatefulWidget {
 
 class _ThermalManagerScreenState extends State<ThermalManagerScreen> {
   final UserDataService _userDataService = UserDataService();
+  final QRService _qrService = QRService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   int _selectedIndex = 0;
   final List<String> _managerImages = [];
@@ -564,44 +566,82 @@ class _ThermalManagerScreenState extends State<ThermalManagerScreen> {
     );
   }
 
-  void _generateQRCheckIn() {
-    // Datos para el QR: ID del punto termal y timestamp
+  Future<void> _generateQRCheckIn() async {
     final pointId = _assignedThermalPointId;
     if (pointId == null) {
       return;
     }
 
-    final qrData = '$pointId-${DateTime.now().millisecondsSinceEpoch}';
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('QR de Check-In'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            QrImageView(
-              data: qrData,
-              version: QrVersions.auto,
-              size: 300,
-              backgroundColor: Colors.white,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Escanea este código para check-in',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cerrar'),
+    try {
+      final pointName = _getThermalPointName(pointId);
+      final activeQr = await _qrService.generateNewQR(pointId);
+      if (!mounted) return;
+
+      showDialog(
+        context: context,
+        builder: (context) => Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
           ),
-        ],
-      ),
-    );
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'QR Generado - $pointName',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 24),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    color: Colors.white,
+                    child: QrImageView(
+                      data: activeQr.code,
+                      version: QrVersions.auto,
+                      size: 250,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Código: ${activeQr.code}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Este QR es ahora el válido.\nLos códigos anteriores expirarán.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Colors.orange,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cerrar'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('✅ QR generado exitosamente')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    }
   }
 
   Future<void> _addImage() async {

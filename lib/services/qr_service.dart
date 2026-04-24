@@ -5,22 +5,55 @@ import '../models/active_qr_model.dart';
 class QRService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  CollectionReference<Map<String, dynamic>> _activeQrCollection(
+    String thermalPointId, {
+    bool legacy = false,
+  }) {
+    final rootCollection = legacy ? 'thermalPoints' : 'thermal_points';
+    return _firestore
+        .collection(rootCollection)
+        .doc(thermalPointId)
+        .collection('activeQR');
+  }
+
+  Future<List<QueryDocumentSnapshot<Map<String, dynamic>>>> _historyDocsWithFallback(
+    String thermalPointId,
+  ) async {
+    Future<List<QueryDocumentSnapshot<Map<String, dynamic>>>> loadDocs(
+      bool legacy,
+    ) async {
+      try {
+        final ordered = await _activeQrCollection(thermalPointId, legacy: legacy)
+            .orderBy('createdAt', descending: true)
+            .get();
+        return ordered.docs;
+      } catch (_) {
+        final raw = await _activeQrCollection(thermalPointId, legacy: legacy).get();
+        return raw.docs;
+      }
+    }
+
+    final primary = await loadDocs(false);
+
+    if (primary.isNotEmpty) {
+      return primary;
+    }
+
+    final legacy = await loadDocs(true);
+
+    return legacy;
+  }
+
   /// Obtiene el QR activo para un punto termal
   Future<ActiveQR?> getActiveQR(String thermalPointId) async {
     try {
-      final doc = await _firestore
-          .collection('thermalPoints')
-          .doc(thermalPointId)
-          .collection('activeQR')
-          .orderBy('createdAt', descending: true)
-          .limit(1)
-          .get();
+      final docs = await _historyDocsWithFallback(thermalPointId);
 
-      if (doc.docs.isEmpty) {
+      if (docs.isEmpty) {
         return null;
       }
 
-      return ActiveQR.fromMap(doc.docs.first.data());
+      return ActiveQR.fromMap(docs.first.data());
     } catch (_) {
       return null;
     }
@@ -39,27 +72,16 @@ class QRService {
       );
 
       // Guardar en Firestore
-      await _firestore
-          .collection('thermalPoints')
-          .doc(thermalPointId)
-          .collection('activeQR')
-          .doc(newQR.id)
-          .set(newQR.toMap());
+        await _activeQrCollection(thermalPointId).doc(newQR.id).set(newQR.toMap());
 
       // Marcar QRs anteriores como expirados (actualizar expiresAt)
-      final previousQRs = await _firestore
-          .collection('thermalPoints')
-          .doc(thermalPointId)
-          .collection('activeQR')
+        final previousQRs = await _activeQrCollection(thermalPointId)
           .orderBy('createdAt', descending: true)
           .get();
 
       // Actualizar el penúltimo QR para que expire ahora
       if (previousQRs.docs.length > 1) {
-        await _firestore
-            .collection('thermalPoints')
-            .doc(thermalPointId)
-            .collection('activeQR')
+        await _activeQrCollection(thermalPointId)
             .doc(previousQRs.docs[1].id)
             .update({
               'expiresAt': now.millisecondsSinceEpoch,
@@ -105,14 +127,18 @@ class QRService {
   /// Obtiene todos los QRs (actuales y anteriores) de un punto
   Future<List<ActiveQR>> getQRHistory(String thermalPointId) async {
     try {
-      final docs = await _firestore
-          .collection('thermalPoints')
-          .doc(thermalPointId)
-          .collection('activeQR')
-          .orderBy('createdAt', descending: true)
-          .get();
+      final docs = await _historyDocsWithFallback(thermalPointId);
+      final parsed = <ActiveQR>[];
+      for (final doc in docs) {
+        try {
+          parsed.add(ActiveQR.fromMap(doc.data()));
+        } catch (_) {
+          // Ignora documentos antiguos/mal formados en lugar de vaciar todo el historial.
+        }
+      }
 
-      return docs.docs.map((doc) => ActiveQR.fromMap(doc.data())).toList();
+      parsed.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return parsed;
     } catch (_) {
       return [];
     }

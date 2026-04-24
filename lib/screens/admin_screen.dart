@@ -814,29 +814,54 @@ class _AdminScreenState extends State<AdminScreen> {
   }
 
   void _showGenerateQRDialog() {
-    final thermalPoints = ThermalPointsData.getThermalPoints();
-    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Generar QR Check-in'),
         content: SizedBox(
           width: double.maxFinite,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: thermalPoints.length,
-            itemBuilder: (context, index) {
-              final point = thermalPoints[index];
-              return ListTile(
-                title: Text(point.name),
-                subtitle: Text(point.address),
-                trailing: IconButton(
-                  icon: const Icon(Icons.qr_code),
-                  onPressed: () async {
-                    Navigator.pop(context);
-                    await _generateAndShowQR(point.id, point.name);
-                  },
-                ),
+          child: FutureBuilder<List<ThermalPoint>>(
+            future: _getThermalPointsForAdmin(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const SizedBox(
+                  height: 180,
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+
+              if (snapshot.hasError) {
+                return SizedBox(
+                  height: 180,
+                  child: Center(child: Text('Error: ${snapshot.error}')),
+                );
+              }
+
+              final thermalPoints = snapshot.data ?? const [];
+              if (thermalPoints.isEmpty) {
+                return const SizedBox(
+                  height: 180,
+                  child: Center(child: Text('No hay puntos termales disponibles')),
+                );
+              }
+
+              return ListView.builder(
+                shrinkWrap: true,
+                itemCount: thermalPoints.length,
+                itemBuilder: (context, index) {
+                  final point = thermalPoints[index];
+                  return ListTile(
+                    title: Text(point.name),
+                    subtitle: Text(point.address),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.qr_code),
+                      onPressed: () async {
+                        Navigator.pop(context);
+                        await _generateAndShowQR(point.id, point.name);
+                      },
+                    ),
+                  );
+                },
               );
             },
           ),
@@ -923,9 +948,58 @@ class _AdminScreenState extends State<AdminScreen> {
     }
   }
 
+  String? _extractThermalPointIdFromQrCode(dynamic rawCode) {
+    if (rawCode is! String) return null;
+    final code = rawCode.trim();
+    if (code.isEmpty) return null;
+
+    final separatorIndex = code.lastIndexOf('-');
+    if (separatorIndex <= 0) return null;
+
+    final pointId = code.substring(0, separatorIndex).trim();
+    return pointId.isEmpty ? null : pointId;
+  }
+
+  Future<List<Map<String, String>>> _getQRHistoryEntriesForAdmin() async {
+    final thermalPoints = await _getThermalPointsForAdmin();
+    final pointsById = <String, ThermalPoint>{
+      for (final point in thermalPoints) point.id: point,
+    };
+
+    final historySnapshot = await _firestore.collectionGroup('activeQR').get();
+    final pointIdsWithHistory = <String>{};
+
+    for (final doc in historySnapshot.docs) {
+      final data = doc.data();
+      final rawPointId = data['thermalPointId'];
+      String? pointId;
+
+      if (rawPointId is String && rawPointId.trim().isNotEmpty) {
+        pointId = rawPointId.trim();
+      } else {
+        pointId = _extractThermalPointIdFromQrCode(data['code']);
+      }
+
+      if (pointId != null && pointId.isNotEmpty) {
+        pointIdsWithHistory.add(pointId);
+      }
+    }
+
+    final entries = pointIdsWithHistory.map((pointId) {
+      final point = pointsById[pointId];
+      return {
+        'id': pointId,
+        'name': point?.name ?? pointId,
+        'subtitle': point?.address ?? 'Punto detectado por historial QR',
+      };
+    }).toList();
+
+    entries.sort((a, b) =>
+        (a['name'] ?? a['id'] ?? '').compareTo(b['name'] ?? b['id'] ?? ''));
+    return entries;
+  }
+
   void _showQRHistoryDialog() {
-    final thermalPoints = ThermalPointsData.getThermalPoints();
-    
     showDialog(
       context: context,
       builder: (context) => Dialog(
@@ -945,21 +1019,42 @@ class _AdminScreenState extends State<AdminScreen> {
               SizedBox(
                 width: double.maxFinite,
                 height: 300,
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: thermalPoints.length,
-                  itemBuilder: (context, index) {
-                    final point = thermalPoints[index];
-                    return ListTile(
-                      title: Text(point.name),
-                      subtitle: Text(point.address),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.list),
-                        onPressed: () async {
-                          Navigator.pop(context);
-                          await _showQRHistoryList(point.id, point.name);
-                        },
-                      ),
+                child: FutureBuilder<List<Map<String, String>>>(
+                  future: _getQRHistoryEntriesForAdmin(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    if (snapshot.hasError) {
+                      return Center(child: Text('Error: ${snapshot.error}'));
+                    }
+
+                    final historyEntries = snapshot.data ?? const [];
+                    if (historyEntries.isEmpty) {
+                      return const Center(child: Text('No hay historial QR disponible'));
+                    }
+
+                    return ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: historyEntries.length,
+                      itemBuilder: (context, index) {
+                        final entry = historyEntries[index];
+                        final pointId = entry['id'] ?? '';
+                        final pointName = entry['name'] ?? pointId;
+                        final subtitle = entry['subtitle'] ?? '';
+                        return ListTile(
+                          title: Text(pointName),
+                          subtitle: Text(subtitle),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.list),
+                            onPressed: () async {
+                              Navigator.pop(context);
+                              await _showQRHistoryList(pointId, pointName);
+                            },
+                          ),
+                        );
+                      },
                     );
                   },
                 ),
@@ -1004,35 +1099,39 @@ class _AdminScreenState extends State<AdminScreen> {
                 SizedBox(
                   width: double.maxFinite,
                   height: 300,
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: qrHistory.length,
-                    itemBuilder: (context, index) {
-                      final qr = qrHistory[index];
-                      return Card(
-                        margin: const EdgeInsets.symmetric(vertical: 8),
-                        child: ListTile(
-                          title: Text('QR #${index + 1}'),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Creado: ${qr.createdAt.toString().substring(0, 19)}',
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                              Text(
-                                qr.isValid ? '✅ Activo' : '❌ Expirado',
-                                style: TextStyle(
-                                  color: qr.isValid ? Colors.green : Colors.red,
-                                  fontWeight: FontWeight.bold,
+                  child: qrHistory.isEmpty
+                      ? const Center(
+                          child: Text('No hay historial QR para este punto termal'),
+                        )
+                      : ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: qrHistory.length,
+                          itemBuilder: (context, index) {
+                            final qr = qrHistory[index];
+                            return Card(
+                              margin: const EdgeInsets.symmetric(vertical: 8),
+                              child: ListTile(
+                                title: Text('QR #${index + 1}'),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Creado: ${qr.createdAt.toString().substring(0, 19)}',
+                                      style: Theme.of(context).textTheme.bodySmall,
+                                    ),
+                                    Text(
+                                      qr.isValid ? '✅ Activo' : '❌ Expirado',
+                                      style: TextStyle(
+                                        color: qr.isValid ? Colors.green : Colors.red,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            ],
-                          ),
+                            );
+                          },
                         ),
-                      );
-                    },
-                  ),
                 ),
                 const SizedBox(height: 16),
                 SizedBox(

@@ -15,6 +15,16 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
+    function isThermalManagerOfPoint(pointId) {
+      return isSignedIn() &&
+        (
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'thermalManager' ||
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'thermal_manager' ||
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'manager'
+        ) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.thermalPointId == pointId;
+    }
+
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
       allow create: if isOwner(userId);
@@ -55,6 +65,26 @@ service cloud.firestore {
     match /thermal_points/{pointId} {
       allow read: if true;
       allow write: if isSignedIn();
+
+      match /activeQR/{qrId} {
+        allow read: if isSignedIn();
+        allow create, update, delete: if isAdmin() || isThermalManagerOfPoint(pointId);
+      }
+    }
+
+    // Compatibilidad con estructura legacy.
+    match /thermalPoints/{pointId} {
+      allow read: if true;
+
+      match /activeQR/{qrId} {
+        allow read: if isSignedIn();
+        allow create, update, delete: if isAdmin() || isThermalManagerOfPoint(pointId);
+      }
+    }
+
+    // Necesario para consultas collectionGroup('activeQR') del historial admin.
+    match /{path=**}/activeQR/{qrId} {
+      allow read: if isSignedIn();
     }
 
     match /routes/{routeId} {

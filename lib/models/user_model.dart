@@ -41,7 +41,7 @@ class User {
   int level;
   DateTime joinedDate;
   UserRole role;
-  String? thermalPointId; // Para gerentes de termas
+  String? thermalPointId; // Para thermalManager
   List<AchievementBadge> badges;
   List<RedeemedReward> redeemedRewards;
 

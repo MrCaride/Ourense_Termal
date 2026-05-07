@@ -478,7 +478,7 @@ class UserDataService {
     }
   }
 
-  // Asignar un punto termal a un gerente
+  // Asignar un punto termal a un thermalManager
   Future<void> assignThermalPointToManager(String managerId, String? thermalPointId) async {
     await _firestore.collection('users').doc(managerId).update({
       'thermalPointId': thermalPointId,
@@ -545,7 +545,7 @@ class UserDataService {
       return ThermalPointAssignmentRequest(
         id: doc.id,
         managerId: data['managerId'] as String? ?? doc.id,
-        managerName: data['managerName'] as String? ?? 'Gerente',
+        managerName: data['managerName'] as String? ?? 'thermalManager',
         thermalPointId: data['thermalPointId'] as String? ?? '',
         requestedAt: requestedAt is Timestamp
             ? requestedAt.toDate()

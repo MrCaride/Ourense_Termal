@@ -1416,15 +1416,15 @@ class _AdminScreenState extends State<AdminScreen> {
                     segments: const <ButtonSegment<UserRole>>[
                       ButtonSegment<UserRole>(
                         value: UserRole.user,
-                        label: Text('Usuario'),
+                        label: Text('user'),
                       ),
                       ButtonSegment<UserRole>(
                         value: UserRole.thermalManager,
-                        label: Text('Gerente'),
+                        label: Text('thermalManager'),
                       ),
                       ButtonSegment<UserRole>(
                         value: UserRole.admin,
-                        label: Text('Admin'),
+                        label: Text('admin'),
                       ),
                     ],
                     selected: <UserRole>{selectedRole},
@@ -1814,7 +1814,7 @@ class _AdminScreenState extends State<AdminScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Gerente: $managerName',
+                'thermalManager: $managerName',
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
               const SizedBox(height: 24),

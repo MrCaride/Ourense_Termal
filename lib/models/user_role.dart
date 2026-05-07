@@ -1,31 +1,31 @@
-/// Enumeración que define los roles disponibles en la aplicación
+/// Enumeración que define los roles disponibles en la aplicación.
+///
+/// Los valores canónicos son `user`, `thermalManager` y `admin`.
 enum UserRole {
-  user,           // Usuario normal con acceso a mapas, rutas y recompensas
-  thermalManager, // Gerente de termas con acceso a QR check-in y gestión de imágenes
-  admin,          // Administrador con acceso completo a gestión de termas, usuarios y recompensas
+  user,
+  thermalManager,
+  admin;
 
-  ;
-
-  /// Convierte un string a UserRole
+  /// Convierte un string a UserRole.
+  ///
+  /// Se mantiene compatibilidad con algunos valores antiguos para no romper
+  /// usuarios ya guardados en Firebase o SQLite.
   static UserRole fromString(String value) {
     final normalized = value.trim().toLowerCase();
 
-    switch (normalized) {
-      case 'user':
-        return UserRole.user;
-      case 'gerente':
-      case 'manager':
-      case 'thermal_manager':
-      case 'thermal-manager':
-      case 'thermalManager':
-      case 'thermalmanager':
-        return UserRole.thermalManager;
-      case 'admin':
-      case 'administrator':
-        return UserRole.admin;
-      default:
-        return UserRole.user;
+    if (normalized == 'user') {
+      return UserRole.user;
     }
+
+    if (normalized == 'thermalmanager') {
+      return UserRole.thermalManager;
+    }
+
+    if (normalized == 'admin') {
+      return UserRole.admin;
+    }
+
+    return UserRole.user;
   }
 }
 
@@ -34,11 +34,11 @@ extension UserRoleExtension on UserRole {
   String getDisplayName() {
     switch (this) {
       case UserRole.user:
-        return 'Usuario';
+        return 'user';
       case UserRole.thermalManager:
-        return 'Gerente de Termas';
+        return 'thermalManager';
       case UserRole.admin:
-        return 'Administrador';
+        return 'admin';
     }
   }
 

@@ -19,7 +19,7 @@ class AppTheme {
     colors: AppColors.headerGradient,
   );
 
-  /// 🌞 Tema claro (Light Theme) - Principal
+  /// Principal
   static ThemeData get light {
     final colorScheme = ColorScheme.fromSeed(
       seedColor: AppColors.thermalCool,

@@ -190,6 +190,55 @@ class UserDataService {
     }
   }
 
+  // Actualizar datos de un usuario (solo admin)
+  Future<void> updateUser({
+    required String userId,
+    required String name,
+    required UserRole role,
+    String? thermalPointId,
+    required int points,
+    required int level,
+  }) async {
+    final normalizedName = name.trim();
+    final normalizedThermalPointId = thermalPointId?.trim();
+    final now = DateTime.now();
+
+    if (normalizedName.length < 2) {
+      throw Exception('El nombre debe tener al menos 2 caracteres');
+    }
+
+    final data = <String, dynamic>{
+      'name': normalizedName,
+      'role': role.getValue(),
+      'thermalPointId': role == UserRole.thermalManager && normalizedThermalPointId != null && normalizedThermalPointId.isNotEmpty
+          ? normalizedThermalPointId
+          : null,
+      'points': points < 0 ? 0 : points,
+      'level': level < 1 ? 1 : level,
+      'updatedAt': now,
+    };
+
+    await _firestore.collection('users').doc(userId).set(data, SetOptions(merge: true));
+
+    if (!kIsWeb) {
+      final db = await _databaseService.database;
+      await db.update(
+        'users',
+        {
+          'name': normalizedName,
+          'role': role.getValue(),
+          'thermalPointId': data['thermalPointId'],
+          'points': data['points'],
+          'level': data['level'],
+          'updatedAt': now.millisecondsSinceEpoch,
+          'syncedWithFirebase': 1,
+        },
+        where: 'id = ?',
+        whereArgs: [userId],
+      );
+    }
+  }
+
   // Actualizar puntos y nivel del usuario
   Future<void> updateUserPoints(String userId, int pointsToAdd) async {
     if (kIsWeb) {
@@ -460,21 +509,40 @@ class UserDataService {
 
   // Eliminar un usuario (solo admin)
   Future<void> deleteUser(String userId) async {
-    if (kIsWeb) {
-      await _firestore.collection('users').doc(userId).delete();
-      // También eliminar check-ins del usuario
-      final checkIns = await _firestore
-          .collection('check_ins')
-          .where('userId', isEqualTo: userId)
-          .get();
-      for (var doc in checkIns.docs) {
-        await doc.reference.delete();
-      }
-    } else {
+    final checkIns = await _firestore
+        .collection('check_ins')
+        .where('userId', isEqualTo: userId)
+        .get();
+    for (var doc in checkIns.docs) {
+      await doc.reference.delete();
+    }
+
+    final badges = await _firestore
+        .collection('badges')
+        .where('userId', isEqualTo: userId)
+        .get();
+    for (var doc in badges.docs) {
+      await doc.reference.delete();
+    }
+
+    final managerRequest = await _firestore
+        .collection('manager_point_requests')
+        .doc(userId)
+        .get();
+    if (managerRequest.exists) {
+      await managerRequest.reference.delete();
+    }
+
+    await _firestore.collection('users').doc(userId).delete();
+
+    if (!kIsWeb) {
       final db = await _databaseService.database;
       await db.delete('users', where: 'id = ?', whereArgs: [userId]);
       await db.delete('check_ins', where: 'userId = ?', whereArgs: [userId]);
       await db.delete('achievements', where: 'userId = ?', whereArgs: [userId]);
+      await db.delete('badges', where: 'userId = ?', whereArgs: [userId]);
+      await db.delete('user_route_progress', where: 'userId = ?', whereArgs: [userId]);
+      await db.delete('user_redeemed_rewards', where: 'user_id = ?', whereArgs: [userId]);
     }
   }
 

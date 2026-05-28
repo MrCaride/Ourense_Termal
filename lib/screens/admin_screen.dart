@@ -12,6 +12,8 @@ import '../services/qr_service.dart';
 import '../services/user_data_service.dart';
 import '../screens/login_screen.dart';
 import '../data/thermal_points_data.dart';
+import '../components/index.dart';
+import '../theme/index.dart';
 import '../utils/app_theme.dart';
 
 class AdminScreen extends StatefulWidget {
@@ -24,7 +26,7 @@ class AdminScreen extends StatefulWidget {
 }
 
 class _AdminScreenState extends State<AdminScreen> {
-  int _selectedIndex = 0;
+  int _selectedIndex = 1;
   final QRService _qrService = QRService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
@@ -36,6 +38,40 @@ class _AdminScreenState extends State<AdminScreen> {
         title: const Text('Panel de Administración'),
         elevation: 0,
         actions: [
+          TextButton.icon(
+            onPressed: _showPanelSwitcher,
+            icon: const Icon(Icons.dashboard_outlined, color: Colors.white),
+            label: const Text('Paneles'),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.white,
+            ),
+          ),
+          IconButton(
+            tooltip: 'Usuarios',
+            icon: const Icon(Icons.people),
+            onPressed: () {
+              setState(() {
+                _selectedIndex = 1;
+              });
+            },
+          ),
+          if (_selectedIndex == 1) ...[
+            IconButton(
+              tooltip: 'Crear usuario',
+              icon: const Icon(Icons.person_add_alt_1),
+              onPressed: _showCreateUserDialog,
+            ),
+            IconButton(
+              tooltip: 'Editar usuarios',
+              icon: const Icon(Icons.edit),
+              onPressed: _showUsersList,
+            ),
+            IconButton(
+              tooltip: 'Eliminar usuarios',
+              icon: const Icon(Icons.person_remove),
+              onPressed: _showDeleteUserDialog,
+            ),
+          ],
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () {
@@ -87,6 +123,12 @@ class _AdminScreenState extends State<AdminScreen> {
         ],
       ),
       body: _buildBody(),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showPanelSwitcher,
+        icon: const Icon(Icons.dashboard_outlined),
+        label: const Text('Cambiar panel'),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: (index) {
@@ -103,14 +145,6 @@ class _AdminScreenState extends State<AdminScreen> {
             icon: Icon(Icons.people),
             label: 'Usuarios',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.card_giftcard),
-            label: 'Recompensas',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings),
-            label: 'Configuración',
-          ),
         ],
       ),
     );
@@ -122,13 +156,77 @@ class _AdminScreenState extends State<AdminScreen> {
         return _buildThermalPointsSection();
       case 1:
         return _buildUsersSection();
-      case 2:
-        return _buildRewardsSection();
-      case 3:
-        return _buildSettingsSection();
       default:
         return _buildThermalPointsSection();
     }
+  }
+
+  void _showPanelSwitcher() {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (context) {
+        return SafeArea(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.7,
+            ),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Cambiar de panel',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildPanelSwitcherTile(
+                    icon: Icons.location_on,
+                    title: 'Puntos Termales',
+                    subtitle: 'QR, historial y gestión de puntos',
+                    index: 0,
+                  ),
+                  _buildPanelSwitcherTile(
+                    icon: Icons.people,
+                    title: 'Usuarios',
+                    subtitle: 'Crear, editar y borrar usuarios',
+                    index: 1,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPanelSwitcherTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required int index,
+  }) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        leading: Icon(icon, color: AppColors.accentBlue),
+        title: Text(title),
+        subtitle: Text(subtitle),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () {
+          Navigator.pop(context);
+          setState(() {
+            _selectedIndex = index;
+          });
+        },
+      ),
+    );
   }
 
   Widget _buildThermalPointsSection() {
@@ -1166,11 +1264,69 @@ class _AdminScreenState extends State<AdminScreen> {
             ),
           ),
           const SizedBox(height: 24),
+          CustomCard(
+            border: Border.all(color: AppColors.accentBlue.withValues(alpha: 0.2)),
+            backgroundColor: Colors.white,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Acciones rápidas',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: _showCreateUserDialog,
+                          icon: const Icon(Icons.person_add_alt_1),
+                          label: const Text('Crear'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: _showUsersList,
+                          icon: const Icon(Icons.edit),
+                          label: const Text('Editar'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: _showDeleteUserDialog,
+                          icon: const Icon(Icons.person_remove),
+                          label: const Text('Borrar'),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.accentRed,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
           _buildAdminCard(
             icon: Icons.person_add,
             title: 'Crear Usuario',
             description: 'Añade un nuevo usuario al sistema',
             onTap: _showCreateUserDialog,
+          ),
+          const SizedBox(height: 12),
+          _buildAdminCard(
+            icon: Icons.edit,
+            title: 'Editar Usuarios',
+            description: 'Modifica nombre, rol, puntos y nivel de un usuario',
+            onTap: _showUsersList,
           ),
           const SizedBox(height: 12),
           _buildAdminCard(
@@ -1463,6 +1619,7 @@ class _AdminScreenState extends State<AdminScreen> {
                             email: emailController.text,
                             password: passwordController.text,
                             role: selectedRole,
+                            acceptedTerms: true,
                           );
 
                           if (context.mounted) {
@@ -1543,19 +1700,32 @@ class _AdminScreenState extends State<AdminScreen> {
                                 ),
                               ],
                             ),
-                            trailing: user.role == UserRole.thermalManager
-                              ? IconButton(
-                                  icon: const Icon(Icons.location_on),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (user.role == UserRole.thermalManager)
+                                  IconButton(
+                                    tooltip: 'Asignar punto termal',
+                                    icon: const Icon(Icons.location_on),
+                                    onPressed: () {
+                                      Navigator.pop(context);
+                                      _showAssignThermalPointDialog(
+                                        user.id,
+                                        user.name,
+                                        user.thermalPointId,
+                                      );
+                                    },
+                                  ),
+                                IconButton(
+                                  tooltip: 'Editar usuario',
+                                  icon: const Icon(Icons.edit, color: Colors.blue),
                                   onPressed: () {
                                     Navigator.pop(context);
-                                    _showAssignThermalPointDialog(
-                                      user.id,
-                                      user.name,
-                                      user.thermalPointId,
-                                    );
+                                    _showEditUserDialog(user);
                                   },
-                                )
-                              : null,
+                                ),
+                              ],
+                            ),
                           ),
                         );
                       },
@@ -1891,6 +2061,188 @@ class _AdminScreenState extends State<AdminScreen> {
                 ],
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showEditUserDialog(User user) {
+    final userDataService = UserDataService();
+    final nameController = TextEditingController(text: user.name);
+    final pointsController = TextEditingController(text: user.points.toString());
+    final levelController = TextEditingController(text: user.level.toString());
+    UserRole selectedRole = user.role;
+    String? selectedPointId = user.thermalPointId;
+
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: StatefulBuilder(
+          builder: (context, setDialogState) => SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Editar Usuario',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(user.email),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: nameController,
+                    decoration: InputDecoration(
+                      labelText: 'Nombre',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      prefixIcon: const Icon(Icons.person),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: pointsController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: 'Puntos',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      prefixIcon: const Icon(Icons.stars_rounded),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: levelController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: 'Nivel',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      prefixIcon: const Icon(Icons.workspace_premium),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  StatefulBuilder(
+                    builder: (context, setRoleState) => SegmentedButton<UserRole>(
+                      segments: const <ButtonSegment<UserRole>>[
+                        ButtonSegment<UserRole>(
+                          value: UserRole.user,
+                          label: Text('user'),
+                        ),
+                        ButtonSegment<UserRole>(
+                          value: UserRole.thermalManager,
+                          label: Text('thermalManager'),
+                        ),
+                        ButtonSegment<UserRole>(
+                          value: UserRole.admin,
+                          label: Text('admin'),
+                        ),
+                      ],
+                      selected: <UserRole>{selectedRole},
+                      onSelectionChanged: (Set<UserRole> newSelection) {
+                        setRoleState(() {
+                          selectedRole = newSelection.first;
+                          if (selectedRole != UserRole.thermalManager) {
+                            selectedPointId = null;
+                          }
+                        });
+                      },
+                    ),
+                  ),
+                  if (selectedRole == UserRole.thermalManager) ...[
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String?>(
+                      value: selectedPointId,
+                      decoration: InputDecoration(
+                        labelText: 'Punto termal',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      items: [
+                        const DropdownMenuItem<String?>(
+                          value: null,
+                          child: Text('Sin asignar'),
+                        ),
+                        ...ThermalPointsData.getThermalPoints().map(
+                          (point) => DropdownMenuItem<String?>(
+                            value: point.id,
+                            child: Text(point.name),
+                          ),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        setDialogState(() {
+                          selectedPointId = value;
+                        });
+                      },
+                    ),
+                  ],
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Cancelar'),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: () async {
+                          final parsedPoints = int.tryParse(pointsController.text.trim());
+                          final parsedLevel = int.tryParse(levelController.text.trim());
+
+                          if (nameController.text.trim().isEmpty ||
+                              parsedPoints == null ||
+                              parsedLevel == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Completa correctamente nombre, puntos y nivel'),
+                              ),
+                            );
+                            return;
+                          }
+
+                          try {
+                            await userDataService.updateUser(
+                              userId: user.id,
+                              name: nameController.text,
+                              role: selectedRole,
+                              thermalPointId: selectedPointId,
+                              points: parsedPoints,
+                              level: parsedLevel,
+                            );
+
+                            if (context.mounted) {
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('✅ Usuario actualizado'),
+                                ),
+                              );
+                              setState(() {});
+                            }
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Error: $e')),
+                            );
+                          }
+                        },
+                        child: const Text('Guardar cambios'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),

@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart';
 import '../models/user_role.dart';
 import 'database_service.dart';
+import 'user_data_service.dart';
 
 class AuthException implements Exception {
   final String message;
@@ -77,6 +78,44 @@ class AuthService {
     } catch (_) {
       // No lanzar error, solo registrar
     }
+  }
+
+  Future<String?> deleteCurrentAccount() async {
+    final currentUser = _firebaseAuth.currentUser;
+    if (currentUser == null) {
+      throw AuthException('No hay una sesión activa.');
+    }
+
+    final userId = currentUser.uid;
+    String? cleanupWarning;
+
+    try {
+      await UserDataService().deleteUser(userId);
+    } on firebase_auth.FirebaseAuthException catch (e) {
+      if (e.code == 'requires-recent-login') {
+        throw AuthException(
+          'Para borrar la cuenta, cierra sesión, vuelve a entrar y prueba de nuevo.',
+        );
+      }
+      throw AuthException('No se pudo borrar la cuenta. Inténtalo de nuevo.');
+    } catch (_) {
+      cleanupWarning = 'La cuenta se eliminó, pero no se pudieron borrar todos los datos asociados.';
+    }
+
+    try {
+      await currentUser.delete();
+    } on firebase_auth.FirebaseAuthException catch (e) {
+      if (e.code == 'requires-recent-login') {
+        throw AuthException(
+          'Para borrar la cuenta, cierra sesión, vuelve a entrar y prueba de nuevo.',
+        );
+      }
+      throw AuthException('No se pudo borrar la cuenta. Inténtalo de nuevo.');
+    } finally {
+      await logout();
+    }
+
+    return cleanupWarning;
   }
 
   // Obtener usuario de sesión guardada
@@ -202,6 +241,7 @@ class AuthService {
     required String email,
     required String password,
     UserRole role = UserRole.user,
+    required bool acceptedTerms,
   }) async {
     final normalizedEmail = email.trim().toLowerCase();
     final passwordHash = _hashPassword(password);
@@ -218,6 +258,10 @@ class AuthService {
 
     if (password.length < 6) {
       throw AuthException('La contraseña debe tener al menos 6 caracteres.');
+    }
+
+    if (!acceptedTerms) {
+      throw AuthException('Debes aceptar los términos de uso para crear la cuenta.');
     }
 
     try {

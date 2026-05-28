@@ -54,6 +54,48 @@ class ProfileScreen extends StatelessWidget {
     }
   }
 
+  Future<void> _confirmAndDeleteAccount(BuildContext context) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminar cuenta'),
+        content: const Text(
+          'Vas a borrar tu cuenta y todos tus datos asociados. Esta acción no se puede deshacer.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.accentRed),
+            child: const Text('Borrar cuenta'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true || !context.mounted) {
+      return;
+    }
+
+    try {
+      await AuthService().deleteCurrentAccount();
+      if (!context.mounted) return;
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        '/login',
+        (route) => false,
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final allBadges = BadgesData.getBadgeDefinitions();
@@ -188,6 +230,63 @@ class ProfileScreen extends StatelessWidget {
                   StatTile(icon: Icons.location_on_rounded, value: checkIns.length.toString(), label: 'Visitas', color: AppColors.thermalCool),
                   StatTile(icon: Icons.verified_rounded, value: user.badges.length.toString(), label: 'Insignias', color: AppColors.accentPurple),
                 ],
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: CustomCard(
+                backgroundColor: const Color(0xFFFFF5F5),
+                border: Border.all(color: AppColors.accentRed.withValues(alpha: 0.35)),
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: AppColors.accentRed.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(Icons.delete_forever_rounded, color: AppColors.accentRed),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Eliminar cuenta', style: AppTypography.titleSmall.copyWith(color: AppColors.accentRed)),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Borra tu perfil, puntos, insignias y check-ins asociados.',
+                                  style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: () => _confirmAndDeleteAccount(context),
+                          icon: const Icon(Icons.delete_forever_rounded),
+                          label: const Text('Eliminar mi cuenta'),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.accentRed,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),

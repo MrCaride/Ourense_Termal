@@ -6,6 +6,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 
 import 'firebase_options.dart';
+import 'models/user_model.dart';
 import 'services/auth_service.dart';
 import 'screens/login_screen.dart';
 import 'widgets/role_based_navigator.dart';
@@ -60,6 +61,7 @@ class AuthChecker extends StatefulWidget {
 class _AuthCheckerState extends State<AuthChecker> {
   final AuthService _authService = AuthService();
   bool _isLoading = true;
+  User? _currentUser;
 
   @override
   void initState() {
@@ -72,45 +74,41 @@ class _AuthCheckerState extends State<AuthChecker> {
     if (!mounted) return;
     
     setState(() {
+      _currentUser = user;
       _isLoading = false;
     });
-
-    if (user != null) {
-      // Si hay sesión, ir a la pantalla según el rol
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => RoleBasedNavigator(user: user)),
-      );
-    } else {
-      // Si no hay sesión, ir al LoginScreen
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-      );
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Pantalla de carga mientras se verifica la sesión
-    return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.cyan[500]!,
-              Colors.blue[500]!,
-              Colors.blue[600]!,
-            ],
+    if (_isLoading) {
+      return Scaffold(
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.cyan[500]!,
+                Colors.blue[500]!,
+                Colors.blue[600]!,
+              ],
+            ),
+          ),
+          child: const Center(
+            child: CircularProgressIndicator(
+              color: Colors.white,
+            ),
           ),
         ),
-        child: const Center(
-          child: CircularProgressIndicator(
-            color: Colors.white,
-          ),
-        ),
-      ),
-    );
+      );
+    }
+
+    if (_currentUser != null) {
+      return RoleBasedNavigator(user: _currentUser!);
+    }
+
+    return const LoginScreen();
   }
 }
 

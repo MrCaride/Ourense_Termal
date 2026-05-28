@@ -24,6 +24,7 @@ class _LoginScreenState extends State<LoginScreen> {
   AuthMode _authMode = AuthMode.login;
   UserRole _selectedRole = UserRole.user;
   bool _showForm = false;
+  bool _acceptedTerms = false;
 
   @override
   void initState() {
@@ -137,6 +138,13 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
+    if (!_acceptedTerms) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Debes aceptar los términos de uso para crear la cuenta')),
+      );
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
@@ -147,6 +155,7 @@ class _LoginScreenState extends State<LoginScreen> {
         email: email,
         password: password,
         role: _selectedRole,
+        acceptedTerms: _acceptedTerms,
       );
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
@@ -371,6 +380,24 @@ class _LoginScreenState extends State<LoginScreen> {
                                           prefixIcon: Icon(Icons.verified_user_outlined),
                                         ),
                                       ),
+                                      const SizedBox(height: AppSpacing.md),
+                                      CheckboxListTile(
+                                        contentPadding: EdgeInsets.zero,
+                                        value: _acceptedTerms,
+                                        onChanged: (value) {
+                                          setState(() {
+                                            _acceptedTerms = value ?? false;
+                                          });
+                                        },
+                                        controlAffinity: ListTileControlAffinity.leading,
+                                        title: const Text(
+                                          'Acepto los términos de uso y autorizo la creación de mi cuenta',
+                                        ),
+                                        subtitle: Text(
+                                          'Es obligatorio marcar esta opción para completar el registro.',
+                                          style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary),
+                                        ),
+                                      ),
                                     ],
                                   ],
                                 ),
@@ -388,7 +415,11 @@ class _LoginScreenState extends State<LoginScreen> {
                                   label: _authMode == AuthMode.login ? 'Acceder' : 'Crear cuenta',
                                   icon: _authMode == AuthMode.login ? Icons.login_rounded : Icons.person_add_alt_1_rounded,
                                   isLoading: _isLoading,
-                                  onPressed: _isLoading ? () {} : (_authMode == AuthMode.login ? _handleLogin : _handleRegister),
+                                  onPressed: _isLoading
+                                      ? () {}
+                                      : (_authMode == AuthMode.login
+                                          ? _handleLogin
+                                          : _handleRegister),
                                 ),
                               ),
                               const SizedBox(height: AppSpacing.md),

@@ -74,6 +74,12 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
     }
   }
 
+  void _closeScanner() {
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
+  }
+
   @override
   void dispose() {
     cameraController.dispose();
@@ -255,6 +261,13 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
           title: const Text('Introducir Código QR'),
           elevation: 0,
           centerTitle: true,
+          actions: [
+            IconButton(
+              onPressed: _closeScanner,
+              icon: const Icon(Icons.close_rounded),
+              tooltip: 'Salir',
+            ),
+          ],
         ),
         body: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -351,6 +364,11 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
         title: const Text('Escanear QR'),
         elevation: 0,
         centerTitle: true,
+        leading: IconButton(
+          onPressed: _closeScanner,
+          icon: const Icon(Icons.close_rounded),
+          tooltip: 'Salir',
+        ),
       ),
       body: Stack(
         children: [
@@ -565,16 +583,6 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
             ),
           ),
 
-          // Botón de cancelar
-          Positioned(
-            top: 12,
-            right: 12,
-            child: FloatingActionButton.small(
-              backgroundColor: Colors.black.withOpacity(0.6),
-              onPressed: () => Navigator.pop(context),
-              child: const Icon(Icons.close, color: Colors.white),
-            ),
-          ),
         ],
       ),
     );

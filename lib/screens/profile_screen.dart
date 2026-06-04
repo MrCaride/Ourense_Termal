@@ -216,22 +216,28 @@ class ProfileScreen extends StatelessWidget {
             ),
           ),
           // Stats
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: GridView.count(
-                crossAxisCount: 3,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                children: [
-                  StatTile(icon: Icons.stars_rounded, value: user.points.toString(), label: 'Puntos', color: AppColors.thermalWarm),
-                  StatTile(icon: Icons.location_on_rounded, value: checkIns.length.toString(), label: 'Visitas', color: AppColors.thermalCool),
-                  StatTile(icon: Icons.verified_rounded, value: user.badges.length.toString(), label: 'Insignias', color: AppColors.accentPurple),
-                ],
-              ),
-            ),
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            sliver: Builder(builder: (context) {
+              final width = MediaQuery.of(context).size.width - 32; // padding accounted
+              final crossAxisCount = width < 360 ? 2 : 3;
+
+              return SliverGrid(
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: crossAxisCount,
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
+                  childAspectRatio: 0.82,
+                ),
+                delegate: SliverChildListDelegate(
+                  [
+                    StatTile(icon: Icons.stars_rounded, value: user.points.toString(), label: 'Puntos', color: AppColors.thermalWarm),
+                    StatTile(icon: Icons.location_on_rounded, value: checkIns.length.toString(), label: 'Visitas', color: AppColors.thermalCool),
+                    StatTile(icon: Icons.verified_rounded, value: user.badges.length.toString(), label: 'Insignias', color: AppColors.accentPurple),
+                  ],
+                ),
+              );
+            }),
           ),
           SliverToBoxAdapter(
             child: Padding(
@@ -424,22 +430,7 @@ class ProfileScreen extends StatelessWidget {
             ),
           ),
           const SliverPadding(padding: EdgeInsets.only(top: 16)),
-          // Botón de logout
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: OutlinedButton.icon(
-                onPressed: () => _confirmAndLogout(context),
-                icon: const Icon(Icons.logout),
-                label: const Text('Cerrar sesión'),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  side: const BorderSide(color: AppColors.accentRed),
-                  foregroundColor: AppColors.accentRed,
-                ),
-              ),
-            ),
-          ),
+          // (Logout button removed from end of profile per request)
           const SliverPadding(padding: EdgeInsets.only(bottom: 32)),
         ],
       ),

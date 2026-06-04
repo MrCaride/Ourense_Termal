@@ -75,7 +75,12 @@ class StatTile extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.md),
-          Text(value, style: AppTypography.displaySmall),
+          Text(
+            value,
+            style: AppTypography.displaySmall,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
           if (label != null)
             Padding(
               padding: const EdgeInsets.only(top: AppSpacing.xs),
@@ -84,6 +89,8 @@ class StatTile extends StatelessWidget {
                 style: AppTypography.bodySmall.copyWith(
                   color: AppColors.textSecondary,
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
         ],

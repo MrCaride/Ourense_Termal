@@ -46,15 +46,6 @@ class _AdminScreenState extends State<AdminScreen> {
               foregroundColor: Colors.white,
             ),
           ),
-          IconButton(
-            tooltip: 'Usuarios',
-            icon: const Icon(Icons.people),
-            onPressed: () {
-              setState(() {
-                _selectedIndex = 1;
-              });
-            },
-          ),
           if (_selectedIndex == 1) ...[
             IconButton(
               tooltip: 'Crear usuario',
@@ -254,13 +245,6 @@ class _AdminScreenState extends State<AdminScreen> {
             title: 'Ver Historial de QR',
             description: 'Consulta QR anteriores y el estado de cada uno',
             onTap: () => _showQRHistoryDialog(),
-          ),
-          const SizedBox(height: 12),
-          _buildAdminCard(
-            icon: Icons.mark_email_unread,
-            title: 'Solicitudes de Gerentes',
-            description: 'Revisa y acepta solicitudes de asignación',
-            onTap: _showManagerPointRequests,
           ),
           const SizedBox(height: 12),
           _buildAdminCard(
@@ -1466,11 +1450,11 @@ class _AdminScreenState extends State<AdminScreen> {
                     segments: const <ButtonSegment<UserRole>>[
                       ButtonSegment<UserRole>(
                         value: UserRole.user,
-                        label: Text('user'),
+                        label: Text('usuario'),
                       ),
                       ButtonSegment<UserRole>(
                         value: UserRole.thermalManager,
-                        label: Text('thermalManager'),
+                        label: Text('gerente'),
                       ),
                       ButtonSegment<UserRole>(
                         value: UserRole.admin,

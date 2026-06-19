@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../models/thermal_point_model.dart';
 import '../models/user_model.dart';
+import '../widgets/app_network_image.dart';
 import 'qr_scanner_screen.dart';
 
 class ThermalPointDetailScreen extends StatefulWidget {
@@ -146,15 +147,9 @@ class _ThermalPointDetailScreenState extends State<ThermalPointDetailScreen> {
               background: Stack(
                 fit: StackFit.expand,
                 children: [
-                  Image.network(
-                    _currentPoint.imageUrl,
+                  AppNetworkImage(
+                    imageUrl: _currentPoint.imageUrl,
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: Colors.grey[300],
-                        child: const Center(child: Icon(Icons.broken_image)),
-                      );
-                    },
                   ),
                   Container(
                     decoration: BoxDecoration(

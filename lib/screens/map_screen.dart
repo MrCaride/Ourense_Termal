@@ -7,6 +7,7 @@ import 'package:latlong2/latlong.dart';
 import '../components/index.dart';
 import '../models/thermal_point_model.dart';
 import '../models/user_model.dart';
+import '../widgets/app_network_image.dart';
 import '../theme/index.dart';
 import 'thermal_point_detail_screen.dart';
 
@@ -470,19 +471,13 @@ class _MapScreenState extends State<MapScreen> {
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
             child: Stack(
               children: [
-                Image.network(
-                  point.imageUrl,
+                SizedBox(
                   height: 170,
                   width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      height: 170,
-                      width: double.infinity,
-                      color: AppColors.surface,
-                      child: const Icon(Icons.broken_image_outlined, size: 40),
-                    );
-                  },
+                  child: AppNetworkImage(
+                    imageUrl: point.imageUrl,
+                    fit: BoxFit.cover,
+                  ),
                 ),
                 Positioned.fill(
                   child: DecoratedBox(

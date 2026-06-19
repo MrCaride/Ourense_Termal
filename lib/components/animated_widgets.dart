@@ -3,7 +3,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 
-/// ✨ ANIMATED LIST ITEM - Item con animación de entrada para listas
+///Item con animación de entrada para listas
 class AnimatedListItem extends StatefulWidget {
   final Widget child;
   final int index;
@@ -104,7 +104,7 @@ class _AnimatedListItemState extends State<AnimatedListItem>
   }
 }
 
-/// ✨ ANIMATED EMPTY STATE - Estado vacío elegante
+
 class EmptyState extends StatefulWidget {
   final IconData icon;
   final String title;
@@ -200,7 +200,7 @@ class _EmptyStateState extends State<EmptyState>
   }
 }
 
-/// 🔔 TOAST NOTIFICATION - Notificaciones flotantes
+///Notificaciones flotantes
 enum ToastType { success, error, warning, info }
 
 class AppToast {

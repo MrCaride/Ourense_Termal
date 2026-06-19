@@ -3,7 +3,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 
-/// 🎨 CUSTOM CARD - Componente base para tarjetas modernas
+///Componente base para tarjetas modernas
 class CustomCard extends StatelessWidget {
   final Widget child;
   final EdgeInsets? padding;
@@ -59,7 +59,7 @@ class CustomCard extends StatelessWidget {
   }
 }
 
-/// 🔘 CUSTOM BUTTON - Botón moderno con variantes
+///Botón moderno con variantes
 enum ButtonVariant { filled, outline, ghost }
 enum ButtonSize { large, medium, small }
 

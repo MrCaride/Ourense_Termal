@@ -370,13 +370,11 @@ class AuthService {
 
       if (localResult.isNotEmpty) {
         final userMap = localResult.first;
-        if ((userMap['passwordHash'] as String? ?? '') != passwordHash) {
-          throw AuthException('Credenciales inválidas.');
-        }
+        final localPasswordMatches =
+            (userMap['passwordHash'] as String? ?? '') == passwordHash;
 
         final localUser = User.fromMap(Map<String, dynamic>.from(userMap));
 
-        // Si hay conexión, prioriza el perfil remoto para evitar roles obsoletos.
         try {
           final credential = await _firebaseAuth.signInWithEmailAndPassword(
             email: normalizedEmail,
@@ -426,8 +424,29 @@ class AuthService {
               return remoteUser;
             }
           }
+        } on firebase_auth.FirebaseAuthException catch (e) {
+          if (!localPasswordMatches) {
+            switch (e.code) {
+              case 'invalid-credential':
+              case 'wrong-password':
+              case 'user-not-found':
+                throw AuthException('Credenciales inválidas.');
+              case 'network-request-failed':
+                throw AuthException(
+                  'Sin conexión y no existe una copia local válida para validar.',
+                );
+              default:
+                throw AuthException('Error al iniciar sesión. Inténtalo de nuevo.');
+            }
+          }
         } catch (_) {
-          // Si no hay red o falla Firebase, mantiene login offline local.
+          if (!localPasswordMatches) {
+            throw AuthException('Credenciales inválidas.');
+          }
+        }
+
+        if (!localPasswordMatches) {
+          throw AuthException('Credenciales inválidas.');
         }
 
         await _saveSession(localUser.id, localUser.email);

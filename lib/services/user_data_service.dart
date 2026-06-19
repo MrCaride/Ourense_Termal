@@ -525,6 +525,23 @@ class UserDataService {
       await doc.reference.delete();
     }
 
+    final routeProgress = await _firestore
+        .collection('user_route_progress')
+        .where('userId', isEqualTo: userId)
+        .get();
+    for (var doc in routeProgress.docs) {
+      await doc.reference.delete();
+    }
+
+    final redeemedRewards = await _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('redeemed_rewards')
+        .get();
+    for (var doc in redeemedRewards.docs) {
+      await doc.reference.delete();
+    }
+
     final managerRequest = await _firestore
         .collection('manager_point_requests')
         .doc(userId)

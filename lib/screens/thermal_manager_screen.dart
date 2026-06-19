@@ -12,6 +12,7 @@ import '../services/qr_service.dart';
 import '../services/user_data_service.dart';
 import '../screens/login_screen.dart';
 import '../utils/app_theme.dart';
+import '../widgets/app_network_image.dart';
 
 class ThermalManagerScreen extends StatefulWidget {
   final User user;
@@ -23,6 +24,28 @@ class ThermalManagerScreen extends StatefulWidget {
 }
 
 class _ThermalManagerScreenState extends State<ThermalManagerScreen> {
+  static const Set<String> _supportedImageHosts = {
+    'images.unsplash.com',
+    'unsplash.com',
+    'i.imgur.com',
+    'imgur.com',
+    'res.cloudinary.com',
+    'firebasestorage.googleapis.com',
+    'storage.googleapis.com',
+    'lh3.googleusercontent.com',
+  };
+
+  static const List<String> _supportedImageExtensions = [
+    '.jpg',
+    '.jpeg',
+    '.png',
+    '.gif',
+    '.webp',
+    '.bmp',
+    '.svg',
+    '.avif',
+  ];
+
   final UserDataService _userDataService = UserDataService();
   final QRService _qrService = QRService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -645,8 +668,17 @@ class _ThermalManagerScreenState extends State<ThermalManagerScreen> {
   }
 
   Future<void> _addImage() async {
-    final imageUrl = _imageUrlController.text.trim();
-    if (imageUrl.isEmpty) return;
+    final rawUrl = _imageUrlController.text.trim();
+    final imageUrl = _normalizeImageUrl(rawUrl);
+    if (imageUrl == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Introduce una URL directa de imagen, no una página web o enlace de Google.'),
+        ),
+      );
+      return;
+    }
 
     setState(() {
       _managerImages.add(imageUrl);
@@ -673,6 +705,39 @@ class _ThermalManagerScreenState extends State<ThermalManagerScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Imagen añadida y actualizada en el punto termal')),
     );
+  }
+
+  String? _normalizeImageUrl(String rawUrl) {
+    if (rawUrl.isEmpty) return null;
+
+    Uri? uri = Uri.tryParse(rawUrl);
+    if (uri == null) return null;
+
+    if (_isGoogleRedirect(uri) && uri.queryParameters['url'] != null) {
+      uri = Uri.tryParse(uri.queryParameters['url']!.trim());
+      if (uri == null) return null;
+    }
+
+    if (!_isSupportedImageUrl(uri)) return null;
+
+    return uri.toString();
+  }
+
+  bool _isGoogleRedirect(Uri uri) {
+    final host = uri.host.toLowerCase();
+    return (host == 'google.com' || host.endsWith('.google.com')) && uri.path == '/url';
+  }
+
+  bool _isSupportedImageUrl(Uri uri) {
+    final scheme = uri.scheme.toLowerCase();
+    if (scheme != 'http' && scheme != 'https') return false;
+
+    final host = uri.host.toLowerCase();
+    final path = uri.path.toLowerCase();
+
+    if (_supportedImageHosts.contains(host)) return true;
+
+    return _supportedImageExtensions.any(path.endsWith);
   }
 
   void _deleteImage(int index) {
@@ -982,17 +1047,14 @@ class _ThermalManagerScreenState extends State<ThermalManagerScreen> {
               itemBuilder: (context, index) {
                 return Stack(
                   children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        image: DecorationImage(
-                          image: NetworkImage(_managerImages[index]),
-                          fit: BoxFit.cover,
-                          onError: (exception, stackTrace) {
-                            // Imagen no disponible
-                          },
-                        ),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
                         color: Colors.grey[200],
+                        child: AppNetworkImage(
+                          imageUrl: _managerImages[index],
+                          fit: BoxFit.cover,
+                        ),
                       ),
                     ),
                     Positioned(
